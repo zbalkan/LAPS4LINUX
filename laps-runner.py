@@ -1,90 +1,91 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from pathlib import Path
 from os import path
 from datetime import datetime, timedelta
+from typing import Literal, Optional
 from dns import resolver, rdatatype
 import ldap3
 import subprocess
 import secrets
 import string
 import socket
-import getpass
 import argparse
 import json
-import sys, os
+import os
 import logging
 import logging.handlers
 import traceback
-from passlib.hash import sha512_crypt as crypt
+from passlib.hash import sha512_crypt
 
 # Microsoft Timestamp Conversion
-EPOCH_TIMESTAMP = 11644473600  # January 1, 1970 as MS file time
-HUNDREDS_OF_NANOSECONDS = 10000000
-def dt_to_filetime(dt): # dt.timestamp() returns UTC time as expected by the LDAP server
+EPOCH_TIMESTAMP : Literal          = 11644473600  # January 1, 1970 as MS file time
+HUNDREDS_OF_NANOSECONDS : Literal  = 10000000
+
+def dt_to_filetime(dt : datetime) -> int: # dt.timestamp() returns UTC time as expected by the LDAP server
 	return int((dt.timestamp() + EPOCH_TIMESTAMP) * HUNDREDS_OF_NANOSECONDS)
-def filetime_to_dt(ft): # ft is in UTC, fromtimestamp() converts to local time
+
+def filetime_to_dt(ft : int) -> datetime: # ft is in UTC, fromtimestamp() converts to local time
 	return datetime.fromtimestamp(int((ft / HUNDREDS_OF_NANOSECONDS) - EPOCH_TIMESTAMP))
 
 
 class LapsRunner():
-	PRODUCT_NAME      = 'LAPS4LINUX Runner'
-	PRODUCT_VERSION   = '1.5.2'
-	PRODUCT_WEBSITE   = 'https://github.com/schorschii/laps4linux'
+	PRODUCT_NAME : str                      = 'LAPS4LINUX Runner'
+	PRODUCT_VERSION : str                   = '1.5.2'
+	PRODUCT_WEBSITE : str                   = 'https://github.com/schorschii/laps4linux'
 
-	server     = None
-	connection = None
-	logger     = None
+	server : Optional[ldap3.ServerPool]     = None
+	connection : Optional[ldap3.Connection] = None
+	logger : Optional[logging.Logger]       = None
 
-	cfgPath             = '/etc/laps-runner.json'
+	cfgPath : str                           = '/etc/laps-runner.json'
 
-	cfgCredCacheFile    = '/tmp/laps.temp'
-	cfgClientKeytabFile = '/etc/krb5.keytab'
-	cfgServer           = []
-	cfgDomain           = ''
+	cfgCredCacheFile : str                  = '/tmp/laps.temp'
+	cfgClientKeytabFile : str               = '/etc/krb5.keytab'
+	cfgServer :list                         = []
+	cfgDomain : str                         = ''
 
-	cfgHostname         = None
-	cfgUsername         = 'root' # the user, whose password should be changed
-	cfgDaysValid        = 30 # how long the new password should be valid
-	cfgLength           = 15 # the generated password length
-	cfgAlphabet         = string.ascii_letters+string.digits # allowed chars for the new password
+	cfgHostname : Optional[str]             = None
+	cfgUsername : str                       = 'root' # the user, whose password should be changed
+	cfgDaysValid : int                      = 30 # how long the new password should be valid
+	cfgLength : int                         = 15 # the generated password length
+	cfgAlphabet : str                       = string.ascii_letters + string.digits # allowed chars for the new password
 
-	cfgLdapAttributePassword       = 'ms-Mcs-AdmPwd'
-	cfgLdapAttributePasswordExpiry = 'ms-Mcs-AdmPwdExpirationTime'
+	cfgLdapAttributePassword : str          = 'ms-Mcs-AdmPwd'
+	cfgLdapAttributePasswordExpiry : str    = 'ms-Mcs-AdmPwdExpirationTime'
 
-	tmpDn         = ''
-	tmpPassword   = ''
-	tmpExpiry     = ''
-	tmpExpiryDate = ''
+	tmpDn : str                             = ''
+	tmpPassword : str                       = ''
+	tmpExpiry : str                         = ''
+	tmpExpiryDate : Optional[datetime]      = None
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, **kwargs) -> None:
 		# init logger
 		self.logger = logging.getLogger('LAPS4LINUX')
 		self.logger.setLevel(logging.DEBUG)
 		self.logger.addHandler(logging.handlers.SysLogHandler(address = '/dev/log'))
 
 		# show note
-		print(self.PRODUCT_NAME+' v'+self.PRODUCT_VERSION)
+		print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
 		if not 'slub' in self.cfgDomain:
 			print('If you like LAPS4LINUX please consider making a donation to support further development ('+self.PRODUCT_WEBSITE+').')
 		else:
 			print(self.PRODUCT_WEBSITE)
 		print('')
 
-	def getHostname(self):
+	def getHostname(self) -> str:
 		if(self.cfgHostname == None or self.cfgHostname.strip() == ''):
 			return socket.gethostname().upper()
 		else:
 			return self.cfgHostname.strip().upper()
 
-	def initKerberos(self):
+	def initKerberos(self)-> None:
 		# query new kerberos ticket
 		cmd = ['kinit', '-k', '-c', self.cfgCredCacheFile, self.getHostname()+'$']
 		res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
 		if res.returncode != 0: raise Exception(' '.join(cmd)+' returned non-zero exit code '+str(res.returncode))
 
-	def connectToServer(self):
+	def connectToServer(self)-> None:
 		# set environment variables for kerberos operations
 		os.environ['KRB5CCNAME'] = self.cfgCredCacheFile
 		os.environ['KRB5_CLIENT_KTNAME'] = self.cfgClientKeytabFile
@@ -104,7 +105,7 @@ class LapsRunner():
 		self.connection = ldap3.Connection(self.server, authentication=ldap3.SASL, sasl_mechanism=ldap3.KERBEROS, auto_bind=True)
 		print('Connected as: '+str(self.connection.server)+' '+self.connection.extend.standard.who_am_i()+'@'+self.cfgDomain)
 
-	def searchComputer(self):
+	def searchComputer(self) -> bool:
 		if self.connection == None: raise Exception('No connection established')
 
 		# check and escape input
@@ -135,13 +136,13 @@ class LapsRunner():
 		self.tmpDn = ''
 		self.tmpPassword = ''
 		self.tmpExpiry = ''
-		self.tmpExpiryDate = ''
+		self.tmpExpiryDate = None
 		return False
 
-	def updatePassword(self):
+	def updatePassword(self)-> None:
 		# generate new values
 		newPassword = self.generatePassword()
-		newPasswordHashed = crypt(newPassword)
+		newPasswordHashed = sha512_crypt(newPassword)
 		newExpirationDate = datetime.now() + timedelta(days=self.cfgDaysValid)
 
 		# update in directory
@@ -156,7 +157,7 @@ class LapsRunner():
 		else:
 			raise Exception(' '.join(cmd)+' returned non-zero exit code '+str(res.returncode))
 
-	def setPasswordAndExpiry(self, newPassword, newExpirationDate):
+	def setPasswordAndExpiry(self, newPassword : sha512_crypt, newExpirationDate : datetime) -> None:
 		# check if dn of target computer object is known
 		if self.tmpDn.strip() == '': return
 
@@ -173,17 +174,17 @@ class LapsRunner():
 		else:
 			raise Exception('Could not update password in LDAP directory.')
 
-	def generatePassword(self):
+	def generatePassword(self) -> str:
 		return ''.join(secrets.choice(self.cfgAlphabet) for i in range(self.cfgLength))
 
-	def createLdapBase(self, domain):
-		search_base = ""
+	def createLdapBase(self, domain : str) -> str:
+		search_base : str = ""
 		base = domain.split(".")
 		for b in base:
 			search_base += "DC=" + b + ","
 		return search_base[:-1]
 
-	def LoadSettings(self):
+	def LoadSettings(self)-> None:
 		if(not path.isfile(self.cfgPath)):
 			raise Exception('Config file not found: '+self.cfgPath)
 		with open(self.cfgPath) as f:
@@ -205,7 +206,7 @@ class LapsRunner():
 			self.cfgLdapAttributePasswordExpiry = str(cfgJson.get('ldap-attribute-password-expiry', self.cfgLdapAttributePasswordExpiry))
 			self.cfgHostname = cfgJson.get('hostname', self.cfgHostname)
 
-def main():
+def main()-> None:
 	runner = LapsRunner()
 
 	# parse arguments
