@@ -3,7 +3,6 @@
 
 from pathlib import Path
 from os import path
-from crypt import crypt
 from datetime import datetime, timedelta
 from dns import resolver, rdatatype
 import ldap3
@@ -18,7 +17,7 @@ import sys, os
 import logging
 import logging.handlers
 import traceback
-
+from passlib.hash import sha512_crypt as crypt
 
 # Microsoft Timestamp Conversion
 EPOCH_TIMESTAMP = 11644473600  # January 1, 1970 as MS file time
