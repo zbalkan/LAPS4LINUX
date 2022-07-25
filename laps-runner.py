@@ -3,7 +3,7 @@
 
 from os import path
 from datetime import datetime, timedelta
-from typing import Literal, Optional
+from typing import Optional
 from dns import resolver, rdatatype
 import ldap3
 import subprocess
@@ -17,21 +17,7 @@ import logging
 import logging.handlers
 import traceback
 from passlib.hash import sha512_crypt
-
-# Microsoft Timestamp Conversion
-EPOCH_TIMESTAMP: Literal = 11644473600  # January 1, 1970 as MS file time
-HUNDREDS_OF_NANOSECONDS: Literal = 10000000
-
-
-# dt.timestamp() returns UTC time as expected by the LDAP server
-def dt_to_filetime(dt: datetime) -> int:
-    return int((dt.timestamp() + EPOCH_TIMESTAMP) * HUNDREDS_OF_NANOSECONDS)
-
-
-# ft is in UTC, fromtimestamp() converts to local time
-def filetime_to_dt(ft: int) -> datetime:
-    return datetime.fromtimestamp(int((ft / HUNDREDS_OF_NANOSECONDS) - EPOCH_TIMESTAMP))
-
+from helpers import helpers as helper
 
 class LapsRunner():
     PRODUCT_NAME: str = 'LAPS4LINUX Runner'
@@ -143,7 +129,7 @@ class LapsRunner():
             self.tmpExpiry = str(entry[self.cfgLdapAttributePasswordExpiry])
             try:
                 # date conversion will fail if there is no previous expiration time saved
-                self.tmpExpiryDate = filetime_to_dt(
+                self.tmpExpiryDate = helper.filetime_to_dt(
                     int(str(entry[self.cfgLdapAttributePasswordExpiry])))
             except Exception as e:
                 print('Unable to parse date ' + str(
@@ -187,7 +173,7 @@ class LapsRunner():
             return
 
         # calc new time
-        newExpirationDateTime = dt_to_filetime(newExpirationDate)
+        newExpirationDateTime = helper.dt_to_filetime(newExpirationDate)
 
         # start query
         self.connection.modify(self.tmpDn, {
