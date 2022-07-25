@@ -17,7 +17,7 @@ import logging
 import logging.handlers
 import traceback
 from passlib.hash import sha512_crypt
-from helpers import helpers as helper
+import helpers as helpers
 
 class LapsRunner():
     PRODUCT_NAME: str = 'LAPS4LINUX Runner'
@@ -129,7 +129,7 @@ class LapsRunner():
             self.tmpExpiry = str(entry[self.cfgLdapAttributePasswordExpiry])
             try:
                 # date conversion will fail if there is no previous expiration time saved
-                self.tmpExpiryDate = helper.filetime_to_dt(
+                self.tmpExpiryDate = helpers.filetime_to_dt(
                     int(str(entry[self.cfgLdapAttributePasswordExpiry])))
             except Exception as e:
                 print('Unable to parse date ' + str(
@@ -173,7 +173,7 @@ class LapsRunner():
             return
 
         # calc new time
-        newExpirationDateTime = helper.dt_to_filetime(newExpirationDate)
+        newExpirationDateTime = helpers.dt_to_filetime(newExpirationDate)
 
         # start query
         self.connection.modify(self.tmpDn, {
