@@ -5,6 +5,7 @@ from os import path
 from datetime import datetime, timedelta
 from typing import Optional
 from dns import resolver, rdatatype
+from Crypto.Hash import SHA512
 import ldap3
 import subprocess
 import secrets
@@ -16,7 +17,6 @@ import os
 import logging
 import logging.handlers
 import traceback
-from passlib.hash import sha512_crypt
 import helpers as helpers
 
 class LapsRunner():
@@ -149,7 +149,7 @@ class LapsRunner():
     def updatePassword(self) -> None:
         # generate new values
         newPassword = self.generatePassword()
-        newPasswordHashed = sha512_crypt(newPassword)
+        newPasswordHashed = SHA512.new(bytes(newPassword,'utf-8'))
         newExpirationDate = datetime.now() + timedelta(days=self.cfgDaysValid)
 
         # update in directory
@@ -167,7 +167,7 @@ class LapsRunner():
             raise Exception(
                 ' '.join(cmd) + ' returned non-zero exit code ' + str(res.returncode))
 
-    def setPasswordAndExpiry(self, newPassword: sha512_crypt, newExpirationDate: datetime) -> None:
+    def setPasswordAndExpiry(self, newPassword: SHA512.SHA512Hash, newExpirationDate: datetime) -> None:
         # check if dn of target computer object is known
         if self.tmpDn.strip() == '':
             return
@@ -178,7 +178,7 @@ class LapsRunner():
         # start query
         self.connection.modify(self.tmpDn, {
             self.cfgLdapAttributePasswordExpiry: [(ldap3.MODIFY_REPLACE, [str(newExpirationDateTime)])],
-            self.cfgLdapAttributePassword: [(ldap3.MODIFY_REPLACE, [str(newPassword)])],
+            self.cfgLdapAttributePassword: [(ldap3.MODIFY_REPLACE, [newPassword.hexdigest])],
         })
         if self.connection.result['result'] == 0:
             print('Password and expiration date changed successfully in LDAP directory (new expiration ' +

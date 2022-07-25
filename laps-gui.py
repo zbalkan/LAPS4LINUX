@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import imp
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -15,16 +16,7 @@ import getpass
 import json
 import sys
 import os
-
-
-# Microsoft Timestamp Conversion
-EPOCH_TIMESTAMP = 11644473600  # January 1, 1970 as MS file time
-HUNDREDS_OF_NANOSECONDS = 10000000
-def dt_to_filetime(dt): # dt.timestamp() returns UTC time as expected by the LDAP server
-	return int((dt.timestamp() + EPOCH_TIMESTAMP) * HUNDREDS_OF_NANOSECONDS)
-def filetime_to_dt(ft): # ft is in UTC, fromtimestamp() converts to local time
-	return datetime.fromtimestamp(int((ft / HUNDREDS_OF_NANOSECONDS) - EPOCH_TIMESTAMP))
-
+import helpers
 
 class LapsAboutWindow(QDialog):
 	def __init__(self, *args, **kwargs):
@@ -106,7 +98,7 @@ class LapsCalendarWindow(QDialog):
 		try:
 			# calc new time
 			newExpirationDate = datetime.combine(self.cwNewExpirationTime.selectedDate().toPyDate(), datetime.min.time())
-			newExpirationDateTime = dt_to_filetime(newExpirationDate)
+			newExpirationDateTime = helpers.dt_to_filetime(newExpirationDate)
 			print('new expiration time: '+str(newExpirationDateTime))
 
 			# start LDAP modify
@@ -469,7 +461,7 @@ class LapsMainWindow(QMainWindow):
 				textBox = self.refLdapAttributesTextBoxes[str(title)]
 				if(str(attribute) == self.cfgLdapAttributePasswordExpiry):
 					try:
-						textBox.setText( str(filetime_to_dt( int(str(entry[str(attribute)])) )) )
+						textBox.setText( str(helpers.filetime_to_dt( int(str(entry[str(attribute)])) )) )
 					except Exception as e:
 						print(str(e))
 						textBox.setText( str(entry[str(attribute)]) )
