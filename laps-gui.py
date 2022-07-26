@@ -18,47 +18,47 @@ import json
 import sys
 import os
 import helpers
-from typing import Any, NoReturn, Optional, cast
+from typing import Any, NoReturn, Optional, Tuple, cast
 
 
 class LapsMainWindow(QMainWindow):
     PLATFORM = sys.platform.lower()
 
-    PRODUCT_NAME = 'LAPS4WINDOWS' if PLATFORM == 'win32' else 'LAPS4MAC' if PLATFORM == 'darwin' else 'LAPS4LINUX'
-    PRODUCT_VERSION = '1.5.2'
-    PRODUCT_WEBSITE = 'https://github.com/schorschii/laps4linux'
-    PROTOCOL_SCHEME = 'laps://'
-    PRODUCT_ICON = 'laps.png'
-    PRODUCT_ICON_PATH = '/usr/share/pixmaps'
+    PRODUCT_NAME: str = 'LAPS4WINDOWS' if PLATFORM == 'win32' else 'LAPS4MAC' if PLATFORM == 'darwin' else 'LAPS4LINUX'
+    PRODUCT_VERSION: str = '1.5.2'
+    PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
+    PROTOCOL_SCHEME: str = 'laps://'
+    PRODUCT_ICON: str = 'laps.png'
+    PRODUCT_ICON_PATH: str = '/usr/share/pixmaps'
 
-    useKerberos = True
-    gcModeOn = False
-    server = None
-    connection = None
-    tmpDn = ''
+    useKerberos: bool = True
+    gcModeOn: bool = False
+    server: Optional[ldap3.ServerPool] = None
+    connection: Optional[ldap3.Connection] = None
+    tmpDn: str = ''
 
-    cfgPresetDirWindows = path.dirname(sys.executable) if getattr(
+    cfgPresetDirWindows: str = path.dirname(sys.executable) if getattr(
         sys, 'frozen', False) else sys.path[0]
-    cfgPresetDirUnix = '/etc'
-    cfgPresetFile = 'laps-client.json'
-    cfgPresetPath = (cfgPresetDirWindows if PLATFORM ==
-                     'win32' else cfgPresetDirUnix) + '/' + cfgPresetFile
+    cfgPresetDirUnix: str = '/etc'
+    cfgPresetFile: str = 'laps-client.json'
+    cfgPresetPath: str = (cfgPresetDirWindows if PLATFORM ==
+                          'win32' else cfgPresetDirUnix) + '/' + cfgPresetFile
 
-    cfgDir = str(Path.home()) + '/.config/laps-client'
-    cfgPath = cfgDir + '/settings.json'
-    cfgPathRemmina = cfgDir + '/laps.remmina'
-    cfgPathOld = str(Path.home()) + '/.laps-client.json'
-    cfgServer = []
-    cfgDomain = ''
-    cfgUsername = ''
-    cfgPassword = ''
-    cfgLdapAttributes = {
+    cfgDir: str = str(Path.home()) + '/.config/laps-client'
+    cfgPath: str = cfgDir + '/settings.json'
+    cfgPathRemmina: str = cfgDir + '/laps.remmina'
+    cfgPathOld: str = str(Path.home()) + '/.laps-client.json'
+    cfgServer: list = []
+    cfgDomain: str = ''
+    cfgUsername: str = ''
+    cfgPassword: str = ''
+    cfgLdapAttributes: dict[str, str] | list[str] = {
         'Administrator Password': 'ms-Mcs-AdmPwd',
         'Password Expiration Date': 'ms-Mcs-AdmPwdExpirationTime'
     }
-    cfgLdapAttributePassword = 'ms-Mcs-AdmPwd'
-    cfgLdapAttributePasswordExpiry = 'ms-Mcs-AdmPwdExpirationTime'
-    refLdapAttributesTextBoxes = {}
+    cfgLdapAttributePassword: str = 'ms-Mcs-AdmPwd'
+    cfgLdapAttributePasswordExpiry: str = 'ms-Mcs-AdmPwdExpirationTime'
+    refLdapAttributesTextBoxes: dict[str, QLineEdit] = {}
 
     def __init__(self) -> None:
         super(LapsMainWindow, self).__init__()
@@ -153,7 +153,8 @@ class LapsMainWindow(QMainWindow):
                 font = QFont('Consolas', 14)
                 font.setBold(True)
             else:
-                font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+                font = QFontDatabase.systemFont(
+                    QFontDatabase.SystemFont.FixedFont)
                 font.setPointSize(18 if self.PLATFORM == 'darwin' else 14)
             txtAdditionalAttribute.setFont(font)
             grid.addWidget(txtAdditionalAttribute, gridLine, 0)
@@ -187,7 +188,7 @@ class LapsMainWindow(QMainWindow):
             protocolPayload = unquote(urlToHandle).replace(
                 self.PROTOCOL_SCHEME, '').strip(' /')
             self.txtSearchComputer.setText(protocolPayload)
-            self.OnClickSearch(None)
+            self.OnClickSearch()
 
     def GetAttributesAsDict(self) -> dict:
         finalDict = {}
@@ -210,7 +211,7 @@ class LapsMainWindow(QMainWindow):
         dlg.exec_()
 
     def OnReturnSearch(self) -> None:
-        self.OnClickSearch(None)
+        self.OnClickSearch()
 
     def OnClickRDP(self) -> None:
         self.RemoteConnection('RDP')
@@ -218,7 +219,7 @@ class LapsMainWindow(QMainWindow):
     def OnClickSSH(self) -> None:
         self.RemoteConnection('SSH')
 
-    def RemoteConnection(self, protocol) -> None:
+    def RemoteConnection(self, protocol: str) -> None:
         if(self.txtSearchComputer.text().strip() == ''):
             return
 
@@ -247,8 +248,8 @@ class LapsMainWindow(QMainWindow):
                 if(config.has_section('remmina_pref') and 'secret' in config['remmina_pref'] and config['remmina_pref']['secret'].strip() != ''):
                     secret = base64.b64decode(config['remmina_pref']['secret'])
                     padding = chr(0) * (8 - len(password) % 8)
-                    password = base64.b64encode(DES3.new(secret[:24], DES3.MODE_CBC, secret[24:]).encrypt(
-                        password + padding)).decode('utf-8')
+                    password = base64.b64encode(DES3.new(secret[:24], DES3.MODE_CBC, secret[24:]).encrypt((
+                        password + padding).encode('utf-8'))).decode('utf-8')
                 else:
                     password = ''
                     self.statusBar.showMessage(
@@ -293,7 +294,7 @@ class LapsMainWindow(QMainWindow):
             self.statusBar.showMessage(str(e))
             print(str(e))
 
-    def OnClickSearch(self, e) -> None:
+    def OnClickSearch(self) -> None:
         # check and escape input
         computerName = self.txtSearchComputer.text()
         if computerName.strip() == "":
@@ -338,7 +339,7 @@ class LapsMainWindow(QMainWindow):
         self.btnSetExpirationTime.setEnabled(False)
         self.btnSearchComputer.setEnabled(True)
 
-    def OnClickSetExpiry(self, e) -> None:
+    def OnClickSetExpiry(self) -> None:
         # check if dn of target computer object is known
         if self.tmpDn.strip() == '':
             return
@@ -717,7 +718,7 @@ class LapsCalendarWindow(QDialog):
                                             ' (' + str(parentWidget.connection.server) + ')'
                                             )
                 # update values in main window
-                parentWidget.OnClickSearch(None)
+                parentWidget.OnClickSearch()
                 self.close()
             else:
                 parentWidget.showErrorDialog('Error', 'Unable to change expiration date to ' + str(newExpirationDateTime) + '.' + "\n\n" + str(
