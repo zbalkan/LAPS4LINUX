@@ -8,7 +8,6 @@ from Crypto.Hash import SHA512
 import ldap3
 import subprocess
 import secrets
-import string
 import socket
 import argparse
 import json
@@ -17,6 +16,7 @@ import logging
 import logging.handlers
 import traceback
 import helpers as helpers
+from configuration import Configuration
 
 
 class LapsRunner():
@@ -29,21 +29,7 @@ class LapsRunner():
     logger: logging.Logger  # no default value
 
     cfgPath: str = '/etc/laps-runner.json'
-
-    cfgCredCacheFile: str = '/tmp/laps.temp'
-    cfgClientKeytabFile: str = '/etc/krb5.keytab'
-    cfgServer: list = []
-    cfgDomain: str = ''
-
-    cfgHostname: str = ''  # no default value
-    cfgUsername: str = 'root'  # the user, whose password should be changed
-    cfgDaysValid: int = 30  # how long the new password should be valid
-    cfgLength: int = 15  # the generated password length
-    cfgAlphabet: str = string.ascii_letters + \
-        string.digits  # allowed chars for the new password
-
-    cfgLdapAttributePassword: str = 'ms-Mcs-AdmPwd'
-    cfgLdapAttributePasswordExpiry: str = 'ms-Mcs-AdmPwdExpirationTime'
+    cfg: Configuration
 
     tmpDn: str = ''
     tmpPassword: str = ''
@@ -59,22 +45,22 @@ class LapsRunner():
 
         # show note
         print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
-        if not 'slub' in self.cfgDomain:
+        if not 'slub' in self.cfg.domain:
             print('If you like LAPS4LINUX please consider making a donation to support further development (' + self.PRODUCT_WEBSITE + ').')
         else:
             print(self.PRODUCT_WEBSITE)
         print('')
 
     def getHostname(self) -> str:
-        if(self.cfgHostname.strip() == ''):
+        if(self.cfg.hostname.strip() == ''):
             return socket.gethostname().upper()
         else:
-            return self.cfgHostname.strip().upper()
+            return self.cfg.hostname.strip().upper()
 
     def initKerberos(self) -> None:
         # query new kerberos ticket
-        cmd = ['kinit', '-k', '-c', self.cfgCredCacheFile,
-               self.getHostname() + '$']
+        cmd: list[str] = ['kinit', '-k', '-c', self.cfg.cred_cache_file,
+                          self.getHostname() + '$']
         res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
         if res.returncode != 0:
@@ -83,57 +69,61 @@ class LapsRunner():
 
     def connectToServer(self) -> None:
         # set environment variables for kerberos operations
-        os.environ['KRB5CCNAME'] = self.cfgCredCacheFile
-        os.environ['KRB5_CLIENT_KTNAME'] = self.cfgClientKeytabFile
+        os.environ['KRB5CCNAME'] = self.cfg.cred_cache_file
+        os.environ['KRB5_CLIENT_KTNAME'] = self.cfg.client_keytab_file
 
         # connect to server with kerberos ticket
-        serverArray = []
-        if(len(self.cfgServer) == 0):
+        serverArray: list[ldap3.Server] = []
+        if(len(self.cfg.server) == 0):
             # query domain controllers by dns lookup
             res = resolver.query(
-                qname=f"_ldap._tcp.{self.cfgDomain}", rdtype=rdatatype.SRV, lifetime=10)
+                qname=f"_ldap._tcp.{self.cfg.domain}", rdtype=rdatatype.SRV, lifetime=10)
             for srv in res.rrset:
                 serverArray.append(ldap3.Server(
                     host=str(srv.target), port=636, use_ssl=True, get_info=ldap3.ALL))
         else:
             # use servers given in config file
-            for server in self.cfgServer:
+            for server in self.cfg.server:
                 serverArray.append(ldap3.Server(
-                    server['address'], port=server['port'], use_ssl=server['ssl'], get_info=ldap3.ALL))
+                    server.address, port=server.port, use_ssl=server.ssl, get_info=ldap3.ALL))
         self.server = ldap3.ServerPool(
             serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
-        self.connection = ldap3.Connection(
-            self.server, authentication=ldap3.SASL, sasl_mechanism=ldap3.KERBEROS, auto_bind=True)
-        print('Connected as: ' + str(self.connection.server) + ' ' +
-              self.connection.extend.standard.who_am_i() + '@' + self.cfgDomain)
+
+        try:
+            self.connection = ldap3.Connection(
+                self.server, authentication=ldap3.SASL, sasl_mechanism=ldap3.KERBEROS, auto_bind='DEFAULT')
+
+            print('Connected as: ' + str(self.connection.server) + ' ' +
+                  self.connection.extend.standard.who_am_i() + '@' + self.cfg.domain)
+        except Exception as e:
+            print("No connection established")
+            self.logger.exception(e)
 
     def searchComputer(self) -> bool:
-        if self.connection == None:
-            raise Exception('No connection established')
-
         # check and escape input
-        computerName = ldap3.utils.conv.escape_filter_chars(self.getHostname())
+        computerName: str = ldap3.utils.conv.escape_filter_chars(
+            self.getHostname())
 
         # start query
         self.connection.search(
-            search_base=self.createLdapBase(self.cfgDomain),
+            search_base=self.createLdapBase(self.cfg.domain),
             search_filter='(&(objectCategory=computer)(name=' +
             computerName + '))',
-            attributes=[self.cfgLdapAttributePassword,
-                        self.cfgLdapAttributePasswordExpiry, 'SAMAccountname', 'distinguishedName']
+            attributes=[self.cfg.ldap_attribute_password,
+                        self.cfg.ldap_attribute_password_expiry, 'SAMAccountname', 'distinguishedName']
         )
         for entry in self.connection.entries:
             # display result
             self.tmpDn = str(entry['distinguishedName'])
-            self.tmpPassword = str(entry[self.cfgLdapAttributePassword])
-            self.tmpExpiry = str(entry[self.cfgLdapAttributePasswordExpiry])
+            self.tmpPassword = self.cfg.ldap_attribute_password
+            self.tmpExpiry = self.cfg.ldap_attribute_password_expiry
             try:
                 # date conversion will fail if there is no previous expiration time saved
                 self.tmpExpiryDate = helpers.filetime_to_dt(
-                    int(str(entry[self.cfgLdapAttributePasswordExpiry])))
+                    int(self.cfg.ldap_attribute_password_expiry))
             except Exception as e:
-                print('Unable to parse date ' + str(
-                    entry[self.cfgLdapAttributePasswordExpiry]) + ' - assuming that no expiration date is set.')
+                print('Unable to parse date ' + self.cfg.ldap_attribute_password_expiry +
+                      ' - assuming that no expiration date is set.')
                 self.tmpExpiryDate = datetime.utcfromtimestamp(0)
             return True
 
@@ -143,26 +133,28 @@ class LapsRunner():
         self.tmpDn = ''
         self.tmpPassword = ''
         self.tmpExpiry = ''
-        self.tmpExpiryDate = None
+        # self.tmpExpiryDate
         return False
 
     def updatePassword(self) -> None:
         # generate new values
         newPassword = self.generatePassword()
         newPasswordHashed = SHA512.new(bytes(newPassword, 'utf-8'))
-        newExpirationDate = datetime.now() + timedelta(days=self.cfgDaysValid)
+        newExpirationDate = datetime.now(
+        ) + timedelta(days=self.cfg.password_days_valid)
 
         # update in directory
         self.setPasswordAndExpiry(newPassword, newExpirationDate)
 
         # update password in local database
-        cmd = ['usermod', '-p', newPasswordHashed, self.cfgUsername]
+        cmd: list[str] = ['usermod', '-p',
+                          newPasswordHashed.digest().decode('utf-8'), self.cfg.password_change_user]
         res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
         if res.returncode == 0:
             print('Password successfully changed in local database.')
             self.logger.debug(self.PRODUCT_NAME + ': Changed password of user ' +
-                              self.cfgUsername + ' in local database.')
+                              self.cfg.password_change_user + ' in local database.')
         else:
             raise Exception(
                 ' '.join(cmd) + ' returned non-zero exit code ' + str(res.returncode))
@@ -177,8 +169,8 @@ class LapsRunner():
 
         # start query
         self.connection.modify(self.tmpDn, {
-            self.cfgLdapAttributePasswordExpiry: [(ldap3.MODIFY_REPLACE, [str(newExpirationDateTime)])],
-            self.cfgLdapAttributePassword: [(ldap3.MODIFY_REPLACE, newPassword)],
+            self.cfg.ldap_attribute_password_expiry: [(ldap3.MODIFY_REPLACE, [str(newExpirationDateTime)])],
+            self.cfg.ldap_attribute_password: [(ldap3.MODIFY_REPLACE, newPassword)],
         })
         if self.connection.result['result'] == 0:
             print('Password and expiration date changed successfully in LDAP directory (new expiration ' +
@@ -187,7 +179,7 @@ class LapsRunner():
             raise Exception('Could not update password in LDAP directory.')
 
     def generatePassword(self) -> str:
-        return ''.join(secrets.choice(self.cfgAlphabet) for i in range(self.cfgLength))
+        return ''.join(secrets.choice(self.cfg.password_alphabet) for i in range(len(self.cfg.password_alphabet)))
 
     def createLdapBase(self, domain: str) -> str:
         search_base: str = ""
@@ -200,31 +192,11 @@ class LapsRunner():
         if(not path.isfile(self.cfgPath)):
             raise Exception('Config file not found: ' + self.cfgPath)
         with open(self.cfgPath) as f:
-            cfgJson = json.load(f)
-            for server in cfgJson.get('server', ''):
-                self.cfgServer.append({
-                    'address': str(server['address']),
-                    'port': int(server['port']),
-                    'ssl': bool(server['ssl'])
-                })
-            self.cfgDomain = cfgJson.get('domain', self.cfgDomain)
-            self.cfgCredCacheFile = cfgJson.get(
-                'cred-cache-file', self.cfgCredCacheFile)
-            self.cfgClientKeytabFile = cfgJson.get(
-                'client-keytab-file', self.cfgClientKeytabFile)
-            self.cfgUsername = cfgJson.get(
-                'password-change-user', self.cfgUsername)
-            self.cfgDaysValid = int(cfgJson.get(
-                'password-days-valid', self.cfgDaysValid))
-            self.cfgLength = int(cfgJson.get(
-                'password-length', self.cfgLength))
-            self.cfgAlphabet = str(cfgJson.get(
-                'password-alphabet', self.cfgAlphabet))
-            self.cfgLdapAttributePassword = str(cfgJson.get(
-                'ldap-attribute-password', self.cfgLdapAttributePassword))
-            self.cfgLdapAttributePasswordExpiry = str(cfgJson.get(
-                'ldap-attribute-password-expiry', self.cfgLdapAttributePasswordExpiry))
-            self.cfgHostname = cfgJson.get('hostname', self.cfgHostname)
+            jsonstring = json.load(f)
+            try:
+                self.cfg = Configuration.from_dict(jsonstring)
+            except:
+                print('Could not read the configuration file. Please check the values.')
 
 
 def main() -> None:
