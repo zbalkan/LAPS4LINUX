@@ -3,6 +3,7 @@
 
 from os import path
 from datetime import datetime, timedelta
+from sys import excepthook
 from dns import resolver, rdatatype
 from Crypto.Hash import SHA512
 import ldap3
@@ -18,6 +19,7 @@ import logging.handlers
 import traceback
 import helpers as helpers
 from configuration import RunnerConfig
+import lapsexception
 
 
 class LapsRunner():
@@ -38,12 +40,7 @@ class LapsRunner():
     tmpExpiryDate: datetime  # no default value
 
     def __init__(self, *args, **kwargs) -> None:
-        # init logger
-        self.logger = logging.getLogger('LAPS4LINUX')
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.addHandler(
-            logging.handlers.SysLogHandler(address='/dev/log'))
-
+        self.initLogger()
         # show note
         print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
         if not 'slub' in self.cfg.domain:
@@ -51,6 +48,13 @@ class LapsRunner():
         else:
             print(self.PRODUCT_WEBSITE)
         print('')
+
+    def initLogger(self):
+        self.logger = logging.getLogger(self.PRODUCT_NAME)
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.addHandler(
+            logging.handlers.SysLogHandler(address='/dev/log'))
+        excepthook = self.logger.error
 
     def getHostname(self) -> str:
         if(self.cfg.hostname.strip() == ''):

@@ -22,6 +22,8 @@ from configuration import CfgServer, ClientConfig
 import helpers
 from typing import NoReturn
 import typing
+import logging
+import logging.handlers
 
 
 class LapsMainWindow(QMainWindow):
@@ -33,6 +35,8 @@ class LapsMainWindow(QMainWindow):
     PROTOCOL_SCHEME: str = 'laps://'
     PRODUCT_ICON: str = 'laps.png'
     PRODUCT_ICON_PATH: str = '/usr/share/pixmaps'
+
+    logger: logging.Logger  # no default value
 
     useKerberos: bool = True
     gcModeOn: bool = False
@@ -56,8 +60,18 @@ class LapsMainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super(LapsMainWindow, self).__init__()
+
+        self.initLogger()
+
         self.LoadSettings()
         self.InitUI()
+
+    def initLogger(self):
+        self.logger = logging.getLogger(self.PRODUCT_NAME)
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.addHandler(
+            logging.handlers.SysLogHandler(address='/dev/log'))
+        excepthook = self.logger.error
 
     def LoadSettings(self) -> None:
         if(not path.isdir(self.cfgDir)):

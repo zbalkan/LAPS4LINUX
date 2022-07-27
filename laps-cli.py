@@ -14,14 +14,18 @@ import sys
 import os
 from configuration import CfgServer, ClientConfig
 import helpers
+import logging
+import logging.handlers
 
 
 class LapsCli():
     PLATFORM = sys.platform.lower()
 
-    PRODUCT_NAME: str = 'LAPS4LINUX C'
+    PRODUCT_NAME: str = 'LAPS4LINUX CLI'
     PRODUCT_VERSION: str = '1.5.2'
     PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
+
+    logger: logging.Logger  # no default value
 
     useKerberos: bool = True
     gcModeOn: bool = False
@@ -41,12 +45,20 @@ class LapsCli():
     cfg: ClientConfig  # no default value
 
     def __init__(self, useKerberos: bool) -> None:
+        self.initLogger()
         self.LoadSettings()
         self.useKerberos = useKerberos
 
         # show version information
         print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
         print(self.PRODUCT_WEBSITE)
+
+    def initLogger(self):
+        self.logger = logging.getLogger(self.PRODUCT_NAME)
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.addHandler(
+            logging.handlers.SysLogHandler(address='/dev/log'))
+        excepthook = self.logger.error
 
     def LoadSettings(self) -> None:
         if(not path.isdir(self.cfgDir)):
