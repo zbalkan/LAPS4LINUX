@@ -60,9 +60,7 @@ class LapsMainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super(LapsMainWindow, self).__init__()
-
         self.initLogger()
-
         self.LoadSettings()
         self.InitUI()
 
@@ -87,7 +85,7 @@ class LapsMainWindow(QMainWindow):
         elif(path.isfile(self.cfgPresetPath)):
             cfgPath = self.cfgPresetPath
         else:
-            raise Exception("Incorrect OS.")
+            raise Exception("Could not find the settings file.")
 
         try:
             with open(cfgPath) as f:

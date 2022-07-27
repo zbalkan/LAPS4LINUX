@@ -74,7 +74,7 @@ class LapsCli():
         elif(path.isfile(self.cfgPresetPath)):
             cfgPath = self.cfgPresetPath
         else:
-            raise Exception("Incorrect OS.")
+            raise Exception("Could not find the settings file.")
 
         try:
             with open(cfgPath) as f:
