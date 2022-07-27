@@ -4,14 +4,15 @@
 from pathlib import Path
 from os import path, makedirs, rename
 from datetime import datetime
-from typing import Optional
 from dns import resolver, rdatatype
 import ldap3
+from ldap3.utils.conv import escape_filter_chars
 import getpass
 import argparse
 import json
 import sys
 import os
+from configuration import CfgServer, ClientConfig
 import helpers
 
 
@@ -24,8 +25,8 @@ class LapsCli():
 
     useKerberos: bool = True
     gcModeOn: bool = False
-    server: Optional[ldap3.ServerPool] = None
-    connection: Optional[ldap3.Connection] = None
+    server: ldap3.ServerPool  # no default value
+    connection: ldap3.Connection  # no default value
     tmpDn: str = ''
 
     cfgPresetDirWindows: str = sys.path[0]
@@ -37,15 +38,7 @@ class LapsCli():
     cfgDir: str = str(Path.home()) + '/.config/laps-client'
     cfgPath: str = cfgDir + '/settings.json'
     cfgPathOld: str = str(Path.home()) + '/.laps-client.json'
-    cfgServer: list = []
-    cfgDomain: str = ''
-    cfgUsername: str = ''
-    cfgPassword: str = ''
-    cfgLdapAttributes: dict[str, str] | list[str] = {
-        'Administrator Password': 'ms-Mcs-AdmPwd',
-        'Password Expiration Date': 'ms-Mcs-AdmPwdExpirationTime'
-    }
-    cfgLdapAttributePasswordExpiry: str = 'ms-Mcs-AdmPwdExpirationTime'
+    cfg: ClientConfig  # no default value
 
     def __init__(self, useKerberos: bool) -> None:
         self.LoadSettings()
@@ -55,39 +48,67 @@ class LapsCli():
         print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
         print(self.PRODUCT_WEBSITE)
 
-    def GetAttributesAsDict(self) -> dict:
-        finalDict = {}
-        if(isinstance(self.cfgLdapAttributes, list)):
-            for attribute in self.cfgLdapAttributes:
-                finalDict[attribute] = attribute
-        elif(isinstance(self.cfgLdapAttributes, dict)):
-            for title, attribute in self.cfgLdapAttributes.items():
-                finalDict[str(title)] = str(attribute)
-        return finalDict
+    def LoadSettings(self) -> None:
+        if(not path.isdir(self.cfgDir)):
+            makedirs(self.cfgDir, exist_ok=True)
+        # protect temporary .remmina file by limiting access to our config folder
+        if(self.PLATFORM == 'linux'):
+            os.chmod(self.cfgDir, 0o700)
+        if(path.exists(self.cfgPathOld)):
+            rename(self.cfgPathOld, self.cfgPath)
+
+        if(path.isfile(self.cfgPath)):
+            cfgPath = self.cfgPath
+        elif(path.isfile(self.cfgPresetPath)):
+            cfgPath = self.cfgPresetPath
+        else:
+            return
+
+        try:
+            with open(cfgPath) as f:
+                cfgJson = json.load(f)
+                self.cfg = ClientConfig.from_dict(cfgJson)
+                self.cfg.domain = self.cfg.domain
+        except Exception as e:
+            print('Error loading settings file: ' + str(e))
+
+    def SaveSettings(self) -> None:
+        try:
+            with open(self.cfgPath, 'w') as json_file:
+                json.dump({
+                    'server': self.cfg.server,
+                    'domain': self.cfg.domain,
+                    'username': self.cfg.username,
+                    'ldap-attribute-password-expiry': self.cfg.ldap_attribute_password_expiry,
+                    'ldap-attributes': self.cfg.ldap_attributes
+                }, json_file, indent=4)
+        except Exception as e:
+            print('Error saving settings file: ' + str(e))
 
     def SearchComputer(self, computerName: str) -> None:
         # check and escape input
         if computerName.strip() == '':
             return
         if not computerName == '*':
-            computerName = ldap3.utils.conv.escape_filter_chars(computerName)
+            computerName = escape_filter_chars(computerName)
 
         # ask for credentials and print connection details
         print('')
         if not self.checkCredentialsAndConnect():
             return
         self.printResult('Connection', str(
-            self.connection.server) + ' ' + self.cfgUsername + '@' + self.cfgDomain)
+            self.connection.server) + ' ' + self.cfg.username + '@' + self.cfg.domain)
 
         try:
             # compile query attributes
             attributes = ['SAMAccountname', 'distinguishedName']
-            for title, attribute in self.GetAttributesAsDict().items():
-                attributes.append(str(attribute))
+            attrs = self.cfg.ldap_attributes.to_dict()
+            for key in attrs:
+                attributes.append(attrs[key])
             # start LDAP search
             count = 0
             self.connection.search(
-                search_base=self.createLdapBase(self.cfgDomain),
+                search_base=self.createLdapBase(self.cfg.domain),
                 search_filter='(&(objectCategory=computer)(name=' +
                 computerName + '))',
                 attributes=attributes
@@ -96,10 +117,11 @@ class LapsCli():
                 count += 1
                 # display result list
                 if computerName == '*':
-                    displayValues = []
-                    for title, attribute in self.GetAttributesAsDict().items():
+                    displayValues: list[str] = []
+                    attrs = self.cfg.ldap_attributes.to_dict()
+                    for key in attrs:
                         displayValues.append(
-                            str(entry[str(attribute)]).ljust(25))
+                            str(entry[attrs[key]]).ljust(25))
                     print(str(entry['SAMAccountname']) +
                           ' : ' + str.join(' : ', displayValues))
                 # display single result
@@ -136,7 +158,7 @@ class LapsCli():
                 newExpirationDateTime) + ' (' + str(newExpirationDate) + ')')
 
             # start LDAP modify
-            self.connection.modify(self.tmpDn, {self.cfgLdapAttributePasswordExpiry: [
+            self.connection.modify(self.tmpDn, {self.cfg.ldap_attribute_password_expiry: [
                                    (ldap3.MODIFY_REPLACE, [str(newExpirationDateTime)])]})
             if self.connection.result['result'] == 0:
                 print('Expiration Date Changed Successfully.')
@@ -157,8 +179,10 @@ class LapsCli():
 
         # compile query attributes
         attributes = ['SAMAccountname', 'distinguishedName']
-        for title, attribute in self.GetAttributesAsDict().items():
-            attributes.append(str(attribute))
+        attrs = self.cfg.ldap_attributes.to_dict()
+        for key in attrs:
+            attributes.append(attrs[key])
+
         # start LDAP search
         self.connection.search(
             search_base=self.tmpDn,
@@ -167,17 +191,18 @@ class LapsCli():
         )
         for entry in self.connection.entries:
             # display single result
-            for title, attribute in self.GetAttributesAsDict().items():
-                if(str(attribute) == self.cfgLdapAttributePasswordExpiry):
+            attrs = self.cfg.ldap_attributes.to_dict()
+            for key in attrs:
+                if(attrs[key] == self.cfg.ldap_attribute_password_expiry):
                     try:
-                        self.printResult(str(title), str(entry[str(
-                            attribute)]) + ' (' + str(helpers.filetime_to_dt(int(str(entry[str(attribute)])))) + ')')
+                        self.printResult(key, str(entry[attrs[key]]) + ' (' + str(
+                            helpers.filetime_to_dt(int(str(entry[attrs[key]])))) + ')')
                     except Exception as e:
                         self.printResult('Error', str(e))
                         self.printResult(
-                            str(title), str(entry[str(attribute)]))
+                            key, str(entry[attrs[key]]))
                 else:
-                    self.printResult(str(title), str(entry[str(attribute)]))
+                    self.printResult(key, str(entry[attrs[key]]))
             return
 
     def printResult(self, attribute: str, value: str) -> None:
@@ -185,52 +210,53 @@ class LapsCli():
 
     def checkCredentialsAndConnect(self) -> bool:
         # ask for server address and domain name if not already set via config file
-        if self.cfgDomain == "":
+        if self.cfg.domain == "":
             item = input('♕ Domain Name (e.g. example.com): ')
             if item and item.strip() != "":
-                self.cfgDomain = item
+                self.cfg.domain = item
                 self.server = None
             else:
                 return False
-        if len(self.cfgServer) == 0:
+        if len(self.cfg.server) == 0:
             # query domain controllers by dns lookup
             try:
                 res = resolver.query(
-                    qname=f"_ldap._tcp.{self.cfgDomain}", rdtype=rdatatype.SRV, lifetime=10)
+                    qname=f"_ldap._tcp.{self.cfg.domain}", rdtype=rdatatype.SRV, lifetime=10)
                 for srv in res.rrset:
-                    serverEntry = {
-                        'address': str(srv.target),
-                        'port': srv.port,
-                        'ssl': (srv.port == 636)
-                    }
+                    # serverEntry = {
+                    #     'address': str(srv.target),
+                    #     'port': srv.port,
+                    #     'ssl': (srv.port == 636)
+                    # }
+                    serverEntry = CfgServer(
+                        str(srv.target), srv.port, (srv.port == 636))
+
                     print('DNS auto discovery found server: ' +
                           json.dumps(serverEntry))
-                    self.cfgServer.append(serverEntry)
+                    self.cfg.server.append(serverEntry)
             except Exception as e:
                 print('DNS auto discovery failed: ' + str(e))
             # ask user to enter server names if auto discovery was not successful
-            if len(self.cfgServer) == 0:
+            if len(self.cfg.server) == 0:
                 item = input('💻 LDAP Server Address: ')
                 if item and item.strip() != "":
-                    self.cfgServer.append({
-                        'address': item,
-                        'port': 389,
-                        'ssl': False
-                    })
+                    self.cfg.server.append(CfgServer(item, 389, False))
                     self.server = None
         self.SaveSettings()
 
         # establish server connection
         if self.server == None:
             try:
-                serverArray = []
-                for server in self.cfgServer:
-                    port = server['port']
-                    if('gc-port' in server):
-                        port = server['gc-port']
+                serverArray: list[ldap3.Server] = []
+                for server in self.cfg.server:
+                    if(server.gc_port):
+                        port = server.gc_port
                         self.gcModeOn = True
+                    else:
+                        port = server.port
+
                     serverArray.append(ldap3.Server(
-                        server['address'], port=port, use_ssl=server['ssl'], get_info=ldap3.ALL))
+                        server.address, port=port, use_ssl=server.ssl, get_info='ALL'))
                 self.server = ldap3.ServerPool(
                     serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
             except Exception as e:
@@ -245,7 +271,7 @@ class LapsCli():
                     authentication=ldap3.SASL,
                     sasl_mechanism=ldap3.KERBEROS,
                     auto_referrals=True,
-                    auto_bind=True
+                    auto_bind='DEFAULT'
                 )
                 # self.connection.bind()
                 return True  # return if connection created successfully
@@ -253,19 +279,19 @@ class LapsCli():
             print('Unable to connect via Kerberos: ' + str(e))
 
         # ask for username and password for NTLM bind
-        if self.cfgUsername == "":
+        if self.cfg.username == "":
             item = input(
                 '👤 Username [' + getpass.getuser() + ']: ') or getpass.getuser()
             if item and item.strip() != "":
-                self.cfgUsername = item
+                self.cfg.username = item
                 self.connection = None
             else:
                 return False
-        if self.cfgPassword == "":
+        if self.cfg.ldap_attribute_password == "":
             item = getpass.getpass(
-                '🔑 Password for »' + self.cfgUsername + '«: ')
+                '🔑 Password for »' + self.cfg.username + '«: ')
             if item and item.strip() != "":
-                self.cfgPassword = item
+                self.cfg.ldap_attribute_password = item
                 self.connection = None
             else:
                 return False
@@ -275,17 +301,17 @@ class LapsCli():
         try:
             self.connection = ldap3.Connection(
                 self.server,
-                user=self.cfgUsername + '@' + self.cfgDomain,
-                password=self.cfgPassword,
+                user=self.cfg.username + '@' + self.cfg.domain,
+                password=self.cfg.ldap_attribute_password,
                 authentication=ldap3.SIMPLE,
                 auto_referrals=True,
-                auto_bind=True
+                auto_bind='DEFAULT'
             )
             # self.connection.bind()
             print('')  # separate user input from results by newline
         except Exception as e:
-            self.cfgUsername = ''
-            self.cfgPassword = ''
+            self.cfg.username = ''
+            self.cfg.ldap_attribute_password = ''
             print('Error binding to LDAP server: ', str(e))
             return False
 
@@ -298,10 +324,10 @@ class LapsCli():
         # global catalog was used for search (this buddy is read only and not all attributes are replicated into it)
         # -> that's why we need to establish a new connection to the "normal" LDAP port
         # LDAP referrals to the correct (sub)domain controller is handled automatically by ldap3
-        serverArray = []
-        for server in self.cfgServer:
+        serverArray: list[ldap3.Server] = []
+        for server in self.cfg.server:
             serverArray.append(ldap3.Server(
-                server['address'], port=server['port'], use_ssl=server['ssl'], get_info=ldap3.ALL))
+                server.address, port=server.port, use_ssl=server.ssl, get_info='ALL'))
         server = ldap3.ServerPool(
             serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
         # try to bind to server via Kerberos
@@ -311,7 +337,7 @@ class LapsCli():
                                                    authentication=ldap3.SASL,
                                                    sasl_mechanism=ldap3.KERBEROS,
                                                    auto_referrals=True,
-                                                   auto_bind=True
+                                                   auto_bind='DEFAULT'
                                                    )
                 return True
         except Exception as e:
@@ -319,11 +345,11 @@ class LapsCli():
         # try to bind to server with username and password
         try:
             self.connection = ldap3.Connection(server,
-                                               user=self.cfgUsername + '@' + self.cfgDomain,
-                                               password=self.cfgPassword,
+                                               user=self.cfg.username + '@' + self.cfg.domain,
+                                               password=self.cfg.ldap_attribute_password,
                                                authentication=ldap3.SIMPLE,
                                                auto_referrals=True,
-                                               auto_bind=True
+                                               auto_bind='DEFAULT'
                                                )
             return True
         except Exception as e:
@@ -337,50 +363,6 @@ class LapsCli():
         for b in base:
             search_base += "DC=" + b + ","
         return search_base[:-1]
-
-    def LoadSettings(self) -> None:
-        if(not path.isdir(self.cfgDir)):
-            makedirs(self.cfgDir, exist_ok=True)
-        # protect temporary .remmina file by limiting access to our config folder
-        if(self.PLATFORM == 'linux'):
-            os.chmod(self.cfgDir, 0o700)
-        if(path.exists(self.cfgPathOld)):
-            rename(self.cfgPathOld, self.cfgPath)
-
-        if(path.isfile(self.cfgPath)):
-            cfgPath = self.cfgPath
-        elif(path.isfile(self.cfgPresetPath)):
-            cfgPath = self.cfgPresetPath
-        else:
-            return
-
-        try:
-            with open(cfgPath) as f:
-                cfgJson = json.load(f)
-                self.cfgServer = cfgJson.get('server', '')
-                self.cfgDomain = cfgJson.get('domain', '')
-                self.cfgUsername = cfgJson.get('username', '')
-                self.cfgLdapAttributePasswordExpiry = str(cfgJson.get(
-                    'ldap-attribute-password-expiry', self.cfgLdapAttributePasswordExpiry))
-                tmpLdapAttributes = cfgJson.get(
-                    'ldap-attributes', self.cfgLdapAttributes)
-                if(isinstance(tmpLdapAttributes, list) or isinstance(tmpLdapAttributes, dict)):
-                    self.cfgLdapAttributes = tmpLdapAttributes
-        except Exception as e:
-            print('Error loading settings file: ' + str(e))
-
-    def SaveSettings(self) -> None:
-        try:
-            with open(self.cfgPath, 'w') as json_file:
-                json.dump({
-                    'server': self.cfgServer,
-                    'domain': self.cfgDomain,
-                    'username': self.cfgUsername,
-                    'ldap-attribute-password-expiry': self.cfgLdapAttributePasswordExpiry,
-                    'ldap-attributes': self.cfgLdapAttributes
-                }, json_file, indent=4)
-        except Exception as e:
-            print('Error saving settings file: ' + str(e))
 
 
 def main() -> None:
