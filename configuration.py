@@ -18,7 +18,7 @@ class Server:
 
 
 @dataclass
-class Configuration:
+class RunnerConfig:
     server: List[Server]
     domain: str
     cred_cache_file: str
@@ -32,7 +32,7 @@ class Configuration:
     password_alphabet: str
 
     @staticmethod
-    def from_dict(obj: Any) -> 'Configuration':
+    def from_dict(obj: Any) -> 'RunnerConfig':
         _server = [Server.from_dict(y) for y in obj.get("server")]
         _domain = str(obj.get("domain"))
         _cred_cache_file = str(obj.get("cred-cache-file"))
@@ -45,9 +45,9 @@ class Configuration:
         _password_days_valid = int(obj.get("password-days-valid"))
         _password_length = int(obj.get("password-length"))
         _password_alphabet = str(obj.get("password-alphabet"))
-        return Configuration(_server, _domain, _cred_cache_file, _client_keytab_file, _ldap_attribute_password, _ldap_attribute_password_expiry, _hostname, _password_change_user, _password_days_valid, _password_length, _password_alphabet)
+        return RunnerConfig(_server, _domain, _cred_cache_file, _client_keytab_file, _ldap_attribute_password, _ldap_attribute_password_expiry, _hostname, _password_change_user, _password_days_valid, _password_length, _password_alphabet)
 
 
 # Example Usage
 # jsonstring = json.loads(myjsonstring)
-# Configuration = Configuration.from_dict(jsonstring)
+# RunnerConfig = RunnerConfig.from_dict(jsonstring)

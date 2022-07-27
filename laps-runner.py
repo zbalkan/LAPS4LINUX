@@ -16,7 +16,7 @@ import logging
 import logging.handlers
 import traceback
 import helpers as helpers
-from configuration import Configuration
+from configuration import RunnerConfig
 
 
 class LapsRunner():
@@ -29,7 +29,7 @@ class LapsRunner():
     logger: logging.Logger  # no default value
 
     cfgPath: str = '/etc/laps-runner.json'
-    cfg: Configuration
+    cfg: RunnerConfig
 
     tmpDn: str = ''
     tmpPassword: str = ''
@@ -125,6 +125,7 @@ class LapsRunner():
                 print('Unable to parse date ' + self.cfg.ldap_attribute_password_expiry +
                       ' - assuming that no expiration date is set.')
                 self.tmpExpiryDate = datetime.utcfromtimestamp(0)
+                self.logger.exception(e)
             return True
 
         # no result found
@@ -194,7 +195,7 @@ class LapsRunner():
         with open(self.cfgPath) as f:
             jsonstring = json.load(f)
             try:
-                self.cfg = Configuration.from_dict(jsonstring)
+                self.cfg = RunnerConfig.from_dict(jsonstring)
             except:
                 print('Could not read the configuration file. Please check the values.')
 
