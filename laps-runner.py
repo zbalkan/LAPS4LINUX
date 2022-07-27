@@ -3,7 +3,6 @@
 
 from os import path
 from datetime import datetime, timedelta
-from typing import Optional
 from dns import resolver, rdatatype
 from Crypto.Hash import SHA512
 import ldap3
@@ -168,7 +167,7 @@ class LapsRunner():
             raise Exception(
                 ' '.join(cmd) + ' returned non-zero exit code ' + str(res.returncode))
 
-    def setPasswordAndExpiry(self, newPassword: SHA512.SHA512Hash, newExpirationDate: datetime) -> None:
+    def setPasswordAndExpiry(self, newPassword: str, newExpirationDate: datetime) -> None:
         # check if dn of target computer object is known
         if self.tmpDn.strip() == '':
             return
@@ -179,7 +178,7 @@ class LapsRunner():
         # start query
         self.connection.modify(self.tmpDn, {
             self.cfgLdapAttributePasswordExpiry: [(ldap3.MODIFY_REPLACE, [str(newExpirationDateTime)])],
-            self.cfgLdapAttributePassword: [(ldap3.MODIFY_REPLACE, [newPassword.hexdigest])],
+            self.cfgLdapAttributePassword: [(ldap3.MODIFY_REPLACE, newPassword)],
         })
         if self.connection.result['result'] == 0:
             print('Password and expiration date changed successfully in LDAP directory (new expiration ' +
