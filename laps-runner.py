@@ -19,6 +19,7 @@ import logging.handlers
 import traceback
 import helpers as helpers
 
+
 class LapsRunner():
     PRODUCT_NAME: str = 'LAPS4LINUX Runner'
     PRODUCT_VERSION: str = '1.5.2'
@@ -137,8 +138,8 @@ class LapsRunner():
                 self.tmpExpiryDate = datetime.utcfromtimestamp(0)
             return True
 
-            # no result found
-            raise Exception('No Result For: ' + computerName)
+        # no result found
+        print('No Result For: ' + computerName)
 
         self.tmpDn = ''
         self.tmpPassword = ''
@@ -149,7 +150,7 @@ class LapsRunner():
     def updatePassword(self) -> None:
         # generate new values
         newPassword = self.generatePassword()
-        newPasswordHashed = SHA512.new(bytes(newPassword,'utf-8'))
+        newPasswordHashed = SHA512.new(bytes(newPassword, 'utf-8'))
         newExpirationDate = datetime.now() + timedelta(days=self.cfgDaysValid)
 
         # update in directory
