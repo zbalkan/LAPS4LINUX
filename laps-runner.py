@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from dns import resolver, rdatatype
 from Crypto.Hash import SHA512
 import ldap3
+from ldap3.utils.conv import escape_filter_chars
 import subprocess
 import secrets
 import socket
@@ -101,7 +102,7 @@ class LapsRunner():
 
     def searchComputer(self) -> bool:
         # check and escape input
-        computerName: str = ldap3.utils.conv.escape_filter_chars(
+        computerName: str = escape_filter_chars(
             self.getHostname())
 
         # start query
