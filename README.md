@@ -3,7 +3,7 @@ Linux implementation of the Local Administrator Password Solution (LAPS) from Mi
 
 ## Management Client
 ### Command Line Interface (CLI)
-```
+```bash
 $ ./laps-cli.py notebook01 --set-expiry "2021-04-28 01:01:01"
 LAPS4LINUX CLI v1.0.0
 https://github.com/schorschii/laps4linux
@@ -41,7 +41,7 @@ It is highly recommended to turn on SSL in the config file (`~/.config/laps-clie
 If you are managing multiple domains, you probably want to search for a computer in all domains. Please use the global catalog for this. This means that you need to set the option `gc-port` in the configuration file of all servers, e.g. to `3268` (LDAP) or `3269` (LDAPS).
 
 Example:
-```
+```json
 {
     "server": [
         {
@@ -67,7 +67,7 @@ If you like, you can hide the "Set Expiration" button by entering an empty strin
 You can create a preset config file `/etc/laps-client.json` which will be loaded if `~/.config/laps-client/settings.json` does not exist. With this, you can distribute default settings (all relevant LDAP attributes, SSL on etc.) for new users.
 
 ### Remote Access
-On Linux, the GUI allows you to directly open RDP or SSH connections via Remmina from the menu. Please make sure you have installed the latest Remmina with RDP and SSH extensions.
+On Linux, the GUI allows you to directly open RDP or SSH connections via [Remmina](https://remmina.org/) from the menu. Please make sure you have installed the [latest Remmina](https://remmina.org/how-to-install-remmina/) with RDP and SSH extensions.
 
 ### `laps://` Protocol Scheme
 The GUI supports the protocol scheme `laps://`, which means you can call the GUI like `laps-gui.py laps://HOSTNAME` to automatically search `HOSTNAME` after startup. This feature is mainly intended to use with the [OCO server](https://github.com/schorschii/OCO-Server) web frontend ("[COMPUTER_COMMANDS](https://github.com/schorschii/OCO-Server/blob/master/docs/Computers.md#client-commands)").
@@ -95,7 +95,7 @@ You can call the runner with the `-f` parameter to force updating the password d
 ### Hostnames Longer Than 15 Characters
 Computer objects in the Microsoft Active Directory can not be longer than 15 characters. If you join a computer with a longer hostname, it will be registered with a different "short name". You have to enter this short name in the config file (setting `hostname`) in order to make the Kerberos authentication work. You can find out the short name by inspecting your keytab: `sudo klist -k /etc/krb5.keytab`.
 
-Set the `hostname` option to `null` (default) to use the system's normal host name.
+Set the `hostname` option to emprty string (`''`) by default to use the system's normal host name.
 
 ### Troubleshooting
 If the script throws an error like `kinit -k -c /tmp/laps.temp SERVER$ returned non-zero exit code 1`, please check what happens when you execute the following commands manually on the command line.
