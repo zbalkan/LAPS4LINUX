@@ -25,9 +25,9 @@ class LapsRunner():
     PRODUCT_VERSION: str = '1.5.2'
     PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
 
-    server: Optional[ldap3.ServerPool] = None
-    connection: Optional[ldap3.Connection] = None
-    logger: Optional[logging.Logger] = None
+    server: ldap3.ServerPool  # no default value
+    connection: ldap3.Connection  # no default value
+    logger: logging.Logger  # no default value
 
     cfgPath: str = '/etc/laps-runner.json'
 
@@ -36,7 +36,7 @@ class LapsRunner():
     cfgServer: list = []
     cfgDomain: str = ''
 
-    cfgHostname: Optional[str] = None
+    cfgHostname: str = ''  # no default value
     cfgUsername: str = 'root'  # the user, whose password should be changed
     cfgDaysValid: int = 30  # how long the new password should be valid
     cfgLength: int = 15  # the generated password length
@@ -49,7 +49,7 @@ class LapsRunner():
     tmpDn: str = ''
     tmpPassword: str = ''
     tmpExpiry: str = ''
-    tmpExpiryDate: Optional[datetime] = None
+    tmpExpiryDate: datetime  # no default value
 
     def __init__(self, *args, **kwargs) -> None:
         # init logger
@@ -67,7 +67,7 @@ class LapsRunner():
         print('')
 
     def getHostname(self) -> str:
-        if(self.cfgHostname == None or self.cfgHostname.strip() == ''):
+        if(self.cfgHostname.strip() == ''):
             return socket.gethostname().upper()
         else:
             return self.cfgHostname.strip().upper()
