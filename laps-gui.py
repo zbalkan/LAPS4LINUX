@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from ctypes import Union
-import typing
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from PyQt5 import Qt
+from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, \
+    QMessageBox, QAction, QLineEdit, QPushButton, QInputDialog, QDialog, \
+    QDialogButtonBox, QVBoxLayout, QCalendarWidget, QApplication
+from PyQt5.QtGui import QIcon, QFont, QFontDatabase
 
 from urllib.parse import unquote
 from pathlib import Path
@@ -13,12 +13,15 @@ from os import path, makedirs, rename
 from datetime import datetime
 from dns import resolver, rdatatype, rrset
 import ldap3
+from ldap3.utils.conv import escape_filter_chars
 import getpass
 import json
 import sys
 import os
+from configuration import CfgServer, ClientConfig
 import helpers
-from typing import Any, NoReturn, Optional, Tuple, cast
+from typing import NoReturn
+import typing
 
 
 class LapsMainWindow(QMainWindow):
@@ -33,8 +36,8 @@ class LapsMainWindow(QMainWindow):
 
     useKerberos: bool = True
     gcModeOn: bool = False
-    server: Optional[ldap3.ServerPool] = None
-    connection: Optional[ldap3.Connection] = None
+    server: ldap3.ServerPool  # no default value
+    connection: ldap3.Connection  # no default value
     tmpDn: str = ''
 
     cfgPresetDirWindows: str = path.dirname(sys.executable) if getattr(
@@ -48,22 +51,51 @@ class LapsMainWindow(QMainWindow):
     cfgPath: str = cfgDir + '/settings.json'
     cfgPathRemmina: str = cfgDir + '/laps.remmina'
     cfgPathOld: str = str(Path.home()) + '/.laps-client.json'
-    cfgServer: list = []
-    cfgDomain: str = ''
-    cfgUsername: str = ''
-    cfgPassword: str = ''
-    cfgLdapAttributes: dict[str, str] | list[str] = {
-        'Administrator Password': 'ms-Mcs-AdmPwd',
-        'Password Expiration Date': 'ms-Mcs-AdmPwdExpirationTime'
-    }
-    cfgLdapAttributePassword: str = 'ms-Mcs-AdmPwd'
-    cfgLdapAttributePasswordExpiry: str = 'ms-Mcs-AdmPwdExpirationTime'
+    cfg: ClientConfig  # no default value
     refLdapAttributesTextBoxes: dict[str, QLineEdit] = {}
 
     def __init__(self) -> None:
         super(LapsMainWindow, self).__init__()
         self.LoadSettings()
         self.InitUI()
+
+    def LoadSettings(self) -> None:
+        if(not path.isdir(self.cfgDir)):
+            makedirs(self.cfgDir, exist_ok=True)
+        # protect temporary .remmina file by limiting access to our config folder
+        if(self.PLATFORM == 'linux'):
+            os.chmod(self.cfgDir, 0o700)
+        if(path.exists(self.cfgPathOld)):
+            rename(self.cfgPathOld, self.cfgPath)
+
+        if(path.isfile(self.cfgPath)):
+            cfgPath = self.cfgPath
+        elif(path.isfile(self.cfgPresetPath)):
+            cfgPath = self.cfgPresetPath
+        else:
+            return
+
+        try:
+            with open(cfgPath) as f:
+                cfgJson = json.load(f)
+                self.cfg = ClientConfig.from_dict(cfgJson)
+
+        except Exception as e:
+            self.showErrorDialog('Error loading settings file', str(e))
+
+    def SaveSettings(self) -> None:
+        try:
+            with open(self.cfgPath, 'w') as json_file:
+                json.dump({
+                    'server': self.cfg.server,
+                    'domain': self.cfg.domain,
+                    'username': self.cfg.username,
+                    'ldap-attribute-password': self.cfg.ldap_attribute_password,
+                    'ldap-attribute-password-expiry': self.cfg.ldap_attribute_password_expiry,
+                    'ldap-attributes': self.cfg.ldap_attributes
+                }, json_file, indent=4)
+        except Exception as e:
+            self.showErrorDialog('Error saving settings file', str(e))
 
     def InitUI(self) -> None:
         # Icon Selection
@@ -85,7 +117,7 @@ class LapsMainWindow(QMainWindow):
         searchAction.setShortcut('F2')
         searchAction.triggered.connect(self.OnClickSearch)
         fileMenu.addAction(searchAction)
-        if(self.cfgLdapAttributePasswordExpiry.strip() != ''):
+        if(self.cfg.ldap_attribute_password_expiry.strip() != ''):
             setExpirationDateAction = QAction('Set &Expiration', self)
             setExpirationDateAction.setShortcut('F3')
             setExpirationDateAction.triggered.connect(self.OnClickSetExpiry)
@@ -143,7 +175,10 @@ class LapsMainWindow(QMainWindow):
         grid.addWidget(self.btnSearchComputer, gridLine, 1)
         gridLine += 1
 
-        for title, attribute in self.GetAttributesAsDict().items():
+        attrs = self.cfg.ldap_attributes.to_dict()
+        for key in attrs:
+            title = key  # unused
+            attribute = attrs[key]
             lblAdditionalAttribute = QLabel(str(title))
             grid.addWidget(lblAdditionalAttribute, gridLine, 0)
             gridLine += 1
@@ -165,7 +200,7 @@ class LapsMainWindow(QMainWindow):
         self.btnSetExpirationTime = QPushButton('Set New Expiration Date')
         self.btnSetExpirationTime.setEnabled(False)
         self.btnSetExpirationTime.clicked.connect(self.OnClickSetExpiry)
-        if(self.cfgLdapAttributePasswordExpiry.strip() != ''):
+        if(self.cfg.ldap_attribute_password_expiry.strip() != ''):
             grid.addWidget(self.btnSetExpirationTime, gridLine, 0)
             gridLine += 1
 
@@ -189,16 +224,6 @@ class LapsMainWindow(QMainWindow):
                 self.PROTOCOL_SCHEME, '').strip(' /')
             self.txtSearchComputer.setText(protocolPayload)
             self.OnClickSearch()
-
-    def GetAttributesAsDict(self) -> dict:
-        finalDict = {}
-        if(isinstance(self.cfgLdapAttributes, list)):
-            for attribute in self.cfgLdapAttributes:
-                finalDict[attribute] = attribute
-        elif(isinstance(self.cfgLdapAttributes, dict)):
-            for title, attribute in self.cfgLdapAttributes.items():
-                finalDict[str(title)] = str(attribute)
-        return finalDict
 
     def OnQuit(self) -> NoReturn:
         sys.exit()
@@ -232,14 +257,18 @@ class LapsMainWindow(QMainWindow):
             from Crypto.Cipher import DES3
 
             password = ''
-            for title, attribute in self.GetAttributesAsDict().items():
-                if(self.cfgLdapAttributePassword == attribute):
+            attrs = self.cfg.ldap_attributes.to_dict()
+            for key in attrs:
+                title = key
+                attribute = attrs[key]
+                if(self.cfg.ldap_attribute_password == attribute):
                     if(title in self.refLdapAttributesTextBoxes):
                         password = self.refLdapAttributesTextBoxes[title].text(
                         )
 
             if(which('remmina') is None):
                 raise Exception('Remmina is not installed')
+
             # passwords must be encrypted in remmina connection files using the secret found in remmina.pref
             remminaPrefPath = str(Path.home()) + '/.remmina/remmina.pref'
             if(os.path.exists(remminaPrefPath)):
@@ -299,7 +328,7 @@ class LapsMainWindow(QMainWindow):
         computerName = self.txtSearchComputer.text()
         if computerName.strip() == "":
             return
-        computerName = ldap3.utils.conv.escape_filter_chars(computerName)
+        computerName = escape_filter_chars(computerName)
 
         # ask for credentials
         self.btnSearchComputer.setEnabled(False)
@@ -325,7 +354,10 @@ class LapsMainWindow(QMainWindow):
             # no result found
             self.statusBar.showMessage(
                 'No Result For: ' + computerName + ' (' + str(self.connection.server) + ')')
-            for title, attribute in self.GetAttributesAsDict().items():
+            attrs = self.cfg.ldap_attributes.to_dict()
+            for key in attrs:
+                title = key
+                attribute = attrs[key]  # unused
                 self.refLdapAttributesTextBoxes[str(title)].setText('')
         except Exception as e:
             # display error
@@ -356,7 +388,10 @@ class LapsMainWindow(QMainWindow):
 
         # compile query attributes
         attributes = ['SAMAccountname', 'distinguishedName']
-        for title, attribute in self.GetAttributesAsDict().items():
+        attrs = self.cfg.ldap_attributes.to_dict()
+        for key in attrs:
+            title = key
+            attribute = attrs[key]
             attributes.append(str(attribute))
         # start LDAP search
         self.connection.search(
@@ -368,9 +403,12 @@ class LapsMainWindow(QMainWindow):
         for entry in self.connection.entries:
             self.btnSetExpirationTime.setEnabled(True)
             self.btnSearchComputer.setEnabled(True)
-            for title, attribute in self.GetAttributesAsDict().items():
+            attrs = self.cfg.ldap_attributes.to_dict()
+            for key in attrs:
+                title = key
+                attribute = attrs[key]
                 textBox = self.refLdapAttributesTextBoxes[str(title)]
-                if(str(attribute) == self.cfgLdapAttributePasswordExpiry):
+                if(str(attribute) == self.cfg.ldap_attribute_password_expiry):
                     try:
                         textBox.setText(str(helpers.filetime_to_dt(
                             int(str(entry[str(attribute)])))))
@@ -391,46 +429,41 @@ class LapsMainWindow(QMainWindow):
                 self.server = None
             else:
                 return False
-        if len(self.cfgServer) == 0:
+        if len(self.cfg.server) == 0:
             # query domain controllers by dns lookup
             try:
                 res: resolver.Answer = resolver.query(
                     qname=f"_ldap._tcp.{self.cfgDomain}", rdtype=rdatatype.SRV, lifetime=10)
                 for srv in res.rrset:
-                    serverEntry = {
-                        'address': str(srv.target),
-                        'port': srv.port,
-                        'ssl': (srv.port == 636)
-                    }
+                    serverEntry = CfgServer(
+                        str(srv.target), srv.port, (srv.port == 636))
                     print('DNS auto discovery found server: ' +
                           json.dumps(serverEntry))
-                    self.cfgServer.append(serverEntry)
+                    self.cfg.server.append(serverEntry)
             except Exception as e:
                 print('DNS auto discovery failed: ' + str(e))
             # ask user to enter server names if auto discovery was not successful
-            if len(self.cfgServer) == 0:
+            if len(self.cfg.server) == 0:
                 item, ok = QInputDialog.getText(
                     self, '💻 Server Address', 'Please enter your LDAP server IP address or DNS name.')
                 if ok and item:
-                    self.cfgServer.append({
-                        'address': item,
-                        'port': 389,
-                        'ssl': False
-                    })
+                    self.cfg.server.append(CfgServer(item, 389, False))
                     self.server = None
         self.SaveSettings()
 
         # establish server connection
         if self.server == None:
             try:
-                serverArray = []
-                for server in self.cfgServer:
-                    port = server['port']
-                    if('gc-port' in server):
-                        port = server['gc-port']
+                serverArray: list[ldap3.Server] = []
+                for server in self.cfg.server:
+                    if(server.gc_port):
+                        port = server.gc_port
                         self.gcModeOn = True
+                    else:
+                        port = server.port
+
                     serverArray.append(ldap3.Server(
-                        server['address'], port=port, use_ssl=server['ssl'], get_info=ldap3.ALL))
+                        server.address, port=port, use_ssl=server.ssl, get_info='ALL'))
                 self.server = ldap3.ServerPool(
                     serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
             except Exception as e:
@@ -445,7 +478,7 @@ class LapsMainWindow(QMainWindow):
                     authentication=ldap3.SASL,
                     sasl_mechanism=ldap3.KERBEROS,
                     auto_referrals=True,
-                    auto_bind=True
+                    auto_bind='DEFAULT'
                 )
                 # self.connection.bind()
                 return True  # return if connection created successfully
@@ -454,11 +487,11 @@ class LapsMainWindow(QMainWindow):
 
         # ask for username and password for NTLM bind
         sslHint = ''
-        if len(self.cfgServer) > 0 and self.cfgServer[0]['ssl'] == False:
+        if len(self.cfg.server) > 0 and self.cfg.server[0].ssl == False:
             sslHint = '\n\nPlease consider enabling SSL in the config file (~/.config/laps-client/settings.json).'
         if self.cfgUsername == "":
             item, ok = QInputDialog.getText(self, '👤 Username', 'Please enter the username which should be used to connect to:\n' + str(
-                self.cfgServer), QLineEdit.Normal, getpass.getuser())
+                self.cfg.server), QLineEdit.Normal, getpass.getuser())
             if ok and item:
                 self.cfgUsername = item
                 self.connection = None
@@ -466,7 +499,7 @@ class LapsMainWindow(QMainWindow):
                 return False
         if self.cfgPassword == "":
             item, ok = QInputDialog.getText(self, '🔑 Password for »' + self.cfgUsername + '«',
-                                            'Please enter the password which should be used to connect to:\n' + str(self.cfgServer) + sslHint, QLineEdit.Password)
+                                            'Please enter the password which should be used to connect to:\n' + str(self.cfg.server) + sslHint, QLineEdit.Password)
             if ok and item:
                 self.cfgPassword = item
                 self.connection = None
@@ -482,7 +515,7 @@ class LapsMainWindow(QMainWindow):
                 password=self.cfgPassword,
                 authentication=ldap3.SIMPLE,
                 auto_referrals=True,
-                auto_bind=True
+                auto_bind='DEFAULT'
             )
             # self.connection.bind()
         except Exception as e:
@@ -501,9 +534,9 @@ class LapsMainWindow(QMainWindow):
         # -> that's why we need to establish a new connection to the "normal" LDAP port
         # LDAP referrals to the correct (sub)domain controller is handled automatically by ldap3
         serverArray = []
-        for server in self.cfgServer:
+        for server in self.cfg.server:
             serverArray.append(ldap3.Server(
-                server['address'], port=server['port'], use_ssl=server['ssl'], get_info=ldap3.ALL))
+                server.address, port=server.port, use_ssl=server.ssl, get_info='ALL'))
         server = ldap3.ServerPool(
             serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
         # try to bind to server via Kerberos
@@ -513,7 +546,7 @@ class LapsMainWindow(QMainWindow):
                                                    authentication=ldap3.SASL,
                                                    sasl_mechanism=ldap3.KERBEROS,
                                                    auto_referrals=True,
-                                                   auto_bind=True
+                                                   auto_bind='DEFAULT'
                                                    )
                 return True
         except Exception as e:
@@ -525,7 +558,7 @@ class LapsMainWindow(QMainWindow):
                                                password=self.cfgPassword,
                                                authentication=ldap3.SIMPLE,
                                                auto_referrals=True,
-                                               auto_bind=True
+                                               auto_bind='DEFAULT'
                                                )
             return True
         except Exception as e:
@@ -539,53 +572,6 @@ class LapsMainWindow(QMainWindow):
         for b in base:
             search_base += "DC=" + b + ","
         return search_base[:-1]
-
-    def LoadSettings(self) -> None:
-        if(not path.isdir(self.cfgDir)):
-            makedirs(self.cfgDir, exist_ok=True)
-        # protect temporary .remmina file by limiting access to our config folder
-        if(self.PLATFORM == 'linux'):
-            os.chmod(self.cfgDir, 0o700)
-        if(path.exists(self.cfgPathOld)):
-            rename(self.cfgPathOld, self.cfgPath)
-
-        if(path.isfile(self.cfgPath)):
-            cfgPath = self.cfgPath
-        elif(path.isfile(self.cfgPresetPath)):
-            cfgPath = self.cfgPresetPath
-        else:
-            return
-
-        try:
-            with open(cfgPath) as f:
-                cfgJson = json.load(f)
-                self.cfgServer = cfgJson.get('server', '')
-                self.cfgDomain = cfgJson.get('domain', '')
-                self.cfgUsername = cfgJson.get('username', '')
-                self.cfgLdapAttributePassword = str(cfgJson.get(
-                    'ldap-attribute-password', self.cfgLdapAttributePassword))
-                self.cfgLdapAttributePasswordExpiry = str(cfgJson.get(
-                    'ldap-attribute-password-expiry', self.cfgLdapAttributePasswordExpiry))
-                tmpLdapAttributes = cfgJson.get(
-                    'ldap-attributes', self.cfgLdapAttributes)
-                if(isinstance(tmpLdapAttributes, list) or isinstance(tmpLdapAttributes, dict)):
-                    self.cfgLdapAttributes = tmpLdapAttributes
-        except Exception as e:
-            self.showErrorDialog('Error loading settings file', str(e))
-
-    def SaveSettings(self) -> None:
-        try:
-            with open(self.cfgPath, 'w') as json_file:
-                json.dump({
-                    'server': self.cfgServer,
-                    'domain': self.cfgDomain,
-                    'username': self.cfgUsername,
-                    'ldap-attribute-password': self.cfgLdapAttributePassword,
-                    'ldap-attribute-password-expiry': self.cfgLdapAttributePasswordExpiry,
-                    'ldap-attributes': self.cfgLdapAttributes
-                }, json_file, indent=4)
-        except Exception as e:
-            self.showErrorDialog('Error saving settings file', str(e))
 
     def showErrorDialog(self, title: str, text: str, additionalText: str = '') -> None:
         print('Error: ' + text)
@@ -708,7 +694,7 @@ class LapsCalendarWindow(QDialog):
             print('new expiration time: ' + str(newExpirationDateTime))
 
             # start LDAP modify
-            parentWidget.connection.modify(parentWidget.tmpDn, {parentWidget.cfgLdapAttributePasswordExpiry: [
+            parentWidget.connection.modify(parentWidget.tmpDn, {parentWidget.cfg.ldap_attribute_password_expiry: [
                                            (ldap3.MODIFY_REPLACE, [str(newExpirationDateTime)])]})
             if parentWidget.connection.result['result'] == 0:
                 parentWidget.showInfoDialog('Success',

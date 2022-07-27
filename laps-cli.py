@@ -68,7 +68,6 @@ class LapsCli():
             with open(cfgPath) as f:
                 cfgJson = json.load(f)
                 self.cfg = ClientConfig.from_dict(cfgJson)
-                self.cfg.domain = self.cfg.domain
         except Exception as e:
             print('Error loading settings file: ' + str(e))
 
@@ -79,6 +78,7 @@ class LapsCli():
                     'server': self.cfg.server,
                     'domain': self.cfg.domain,
                     'username': self.cfg.username,
+                    'ldap-attribute-password': self.cfg.ldap_attribute_password,
                     'ldap-attribute-password-expiry': self.cfg.ldap_attribute_password_expiry,
                     'ldap-attributes': self.cfg.ldap_attributes
                 }, json_file, indent=4)
@@ -104,7 +104,10 @@ class LapsCli():
             attributes = ['SAMAccountname', 'distinguishedName']
             attrs = self.cfg.ldap_attributes.to_dict()
             for key in attrs:
-                attributes.append(attrs[key])
+                title = key  # unused
+                attribute = attrs[key]
+                attributes.append(attribute)
+
             # start LDAP search
             count = 0
             self.connection.search(
@@ -120,8 +123,10 @@ class LapsCli():
                     displayValues: list[str] = []
                     attrs = self.cfg.ldap_attributes.to_dict()
                     for key in attrs:
+                        title = key  # unused
+                        attribute = attrs[key]
                         displayValues.append(
-                            str(entry[attrs[key]]).ljust(25))
+                            str(entry[attribute]).ljust(25))
                     print(str(entry['SAMAccountname']) +
                           ' : ' + str.join(' : ', displayValues))
                 # display single result
@@ -181,7 +186,9 @@ class LapsCli():
         attributes = ['SAMAccountname', 'distinguishedName']
         attrs = self.cfg.ldap_attributes.to_dict()
         for key in attrs:
-            attributes.append(attrs[key])
+            title = key
+            attribute = attrs[key]
+            attributes.append(attribute)
 
         # start LDAP search
         self.connection.search(
@@ -191,18 +198,19 @@ class LapsCli():
         )
         for entry in self.connection.entries:
             # display single result
-            attrs = self.cfg.ldap_attributes.to_dict()
             for key in attrs:
-                if(attrs[key] == self.cfg.ldap_attribute_password_expiry):
+                title = key
+                attribute = attrs[key]
+                if(attribute == self.cfg.ldap_attribute_password_expiry):
                     try:
-                        self.printResult(key, str(entry[attrs[key]]) + ' (' + str(
-                            helpers.filetime_to_dt(int(str(entry[attrs[key]])))) + ')')
+                        self.printResult(title, str(entry[attribute]) + ' (' + str(
+                            helpers.filetime_to_dt(int(str(entry[attribute])))) + ')')
                     except Exception as e:
                         self.printResult('Error', str(e))
                         self.printResult(
-                            key, str(entry[attrs[key]]))
+                            title, str(entry[attribute]))
                 else:
-                    self.printResult(key, str(entry[attrs[key]]))
+                    self.printResult(title, str(entry[attribute]))
             return
 
     def printResult(self, attribute: str, value: str) -> None:
@@ -223,14 +231,8 @@ class LapsCli():
                 res = resolver.query(
                     qname=f"_ldap._tcp.{self.cfg.domain}", rdtype=rdatatype.SRV, lifetime=10)
                 for srv in res.rrset:
-                    # serverEntry = {
-                    #     'address': str(srv.target),
-                    #     'port': srv.port,
-                    #     'ssl': (srv.port == 636)
-                    # }
                     serverEntry = CfgServer(
                         str(srv.target), srv.port, (srv.port == 636))
-
                     print('DNS auto discovery found server: ' +
                           json.dumps(serverEntry))
                     self.cfg.server.append(serverEntry)
