@@ -73,7 +73,7 @@ class LapsMainWindow(QMainWindow):
         elif(path.isfile(self.cfgPresetPath)):
             cfgPath = self.cfgPresetPath
         else:
-            return
+            raise Exception("Incorrect OS.")
 
         try:
             with open(cfgPath) as f:
