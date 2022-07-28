@@ -1,4 +1,7 @@
 #!/bin/bash
+# Exit when any command fails
+set -e
+
 # Ensure that the rpm build tools are installed
 yum install -y rpmdevtools rpmlint
 rpmdev-setuptree
