@@ -33,7 +33,7 @@ class LapsMainWindow(QMainWindow):
     PLATFORM = sys.platform.lower()
 
     PRODUCT_NAME: str = 'LAPS4WINDOWS' if PLATFORM == 'win32' else 'LAPS4MAC' if PLATFORM == 'darwin' else 'LAPS4LINUX'
-    PRODUCT_VERSION: str = '1.5.2'
+    PRODUCT_VERSION: str = '1.5.3'
     PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
     PROTOCOL_SCHEME: str = 'laps://'
     PRODUCT_ICON: str = 'laps.png'

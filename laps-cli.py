@@ -22,7 +22,7 @@ class LapsCli():
     PLATFORM = sys.platform.lower()
 
     PRODUCT_NAME: str = 'LAPS4LINUX CLI'
-    PRODUCT_VERSION: str = '1.5.2'
+    PRODUCT_VERSION: str = '1.5.3'
     PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
 
     logger: logging.Logger  # no default value

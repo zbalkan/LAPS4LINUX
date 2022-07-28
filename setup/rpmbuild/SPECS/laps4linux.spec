@@ -1,5 +1,5 @@
 Name:           laps4linux
-Version:        1.5.2
+Version:        1.5.3
 Release:        1%{?dist}
 Summary:        Laps4linux - auto-rotate the root password for AD bound (samba net, pbis, adcli) linux servers
 BuildArch:      noarch
@@ -40,5 +40,16 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* August 2022 zbalkan
+- Improved configuration handling
+- Improved logging with global exception handling
+- Removed unreachable code snippets
+- Used stricter typing where possible
+- Used external classes to simplify the code base
+- Remmina check is moved to the menu creation. Instead of throwing exception on absence, it now does not render the menu at all.
+- Added .editorconfig, .gitattributes, and requirements.txt for ease of development
+- Added Github actions for static code analysis
+- Ipdated README
+
 * Thu Jan 13 2022 novaksam
 - Initial build

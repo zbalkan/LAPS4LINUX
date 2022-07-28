@@ -23,7 +23,7 @@ from configuration import RunnerConfig
 
 class LapsRunner():
     PRODUCT_NAME: str = 'LAPS4LINUX Runner'
-    PRODUCT_VERSION: str = '1.5.2'
+    PRODUCT_VERSION: str = '1.5.3'
     PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
 
     server: ldap3.ServerPool  # no default value
