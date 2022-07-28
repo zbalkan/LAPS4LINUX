@@ -29,6 +29,8 @@ class LapsCli():
     PRODUCT_VERSION: str = '1.5.3'
     PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
 
+    ENCODING: str = 'utf-8'
+
     logger: logging.Logger  # no default value
 
     useKerberos: bool = True
@@ -73,7 +75,7 @@ class LapsCli():
         if(not path.isdir(self.cfgDir)):
             makedirs(self.cfgDir, exist_ok=True)
             with open(self.cfgPath, 'x') as f:
-                f.write(base64.b64decode(const.DEFAULT_SETTINGS).decode('utf-8'))
+                f.write(base64.b64decode(const.DEFAULT_SETTINGS).decode(self.ENCODING))
             raise Exception(
                 'Default settings file created. Please fill in the file to continue.')
 
@@ -100,7 +102,7 @@ class LapsCli():
 
     def __isDefaultSettingFile(self, cfgPath, cfgJson):
         b64 = base64.b64encode(
-                    str(cfgJson).encode('utf-8')).decode('utf-8')
+                    str(cfgJson).encode(self.ENCODING)).decode(self.ENCODING)
         if(b64 == const.DEFAULT_SETTINGS):
             raise Exception(
                         'Default settings detected at \"' + cfgPath + '\". Exiting.')

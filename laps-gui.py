@@ -43,6 +43,8 @@ class LapsMainWindow(QMainWindow):
     PRODUCT_ICON: str = 'laps.png'
     PRODUCT_ICON_PATH: str = '/usr/share/pixmaps'
 
+    ENCODING: str = 'utf-8'
+
     logger: logging.Logger  # no default value
 
     useKerberos: bool = True
@@ -124,7 +126,7 @@ class LapsMainWindow(QMainWindow):
 
     def __isDefaultSettingFile(self, cfgPath, cfgJson):
         b64 = base64.b64encode(
-                    str(cfgJson).encode('utf-8')).decode('utf-8')
+                    str(cfgJson).encode(self.ENCODING)).decode(self.ENCODING)
         if(b64 == const.DEFAULT_SETTINGS):
             raise Exception(
                         'Default settings detected at \"' + cfgPath + '\". Exiting.')

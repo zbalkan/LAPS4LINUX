@@ -26,6 +26,8 @@ class LapsRunner():
     PRODUCT_VERSION: str = '1.5.3'
     PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
 
+    ENCODING: str = 'utf-8'
+
     server: ldap3.ServerPool  # no default value
     connection: ldap3.Connection  # no default value
     logger: logging.Logger  # no default value
@@ -144,7 +146,7 @@ class LapsRunner():
     def updatePassword(self) -> None:
         # generate new values
         newPassword = self.generatePassword()
-        newPasswordHashed = SHA512.new(bytes(newPassword, 'utf-8'))
+        newPasswordHashed = SHA512.new(bytes(newPassword, self.ENCODING))
         newExpirationDate = datetime.now(
         ) + timedelta(days=self.cfg.password_days_valid)
 
@@ -153,7 +155,7 @@ class LapsRunner():
 
         # update password in local database
         cmd: list[str] = ['usermod', '-p',
-                          newPasswordHashed.digest().decode('utf-8'), self.cfg.password_change_user]
+                          newPasswordHashed.digest().decode(self.ENCODING), self.cfg.password_change_user]
         res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
         if res.returncode == 0:
