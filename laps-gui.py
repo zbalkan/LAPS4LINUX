@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import base64
 import getpass
 import json
 import logging
@@ -24,6 +25,7 @@ from PyQt5.QtWidgets import (QAction, QApplication, QCalendarWidget, QDialog,
                              QDialogButtonBox, QGridLayout, QInputDialog, QLabel, QLineEdit,
                              QMainWindow, QMessageBox, QPushButton, QVBoxLayout, QWidget)
 
+import constants as const
 import helpers
 from configuration import CfgServer, ClientConfig
 from freerdpconnector import FreeRDPConnector
@@ -81,14 +83,23 @@ class LapsMainWindow(QMainWindow):
             self.logger.addHandler(
                 logging.handlers.TimedRotatingFileHandler(
                     filename='laps-gui.log', when='m', interval=1, backupCount=5))
-        else: # any *NIX variant
+        else:  # any *NIX variant
             self.logger.addHandler(
                 logging.handlers.SysLogHandler(address='/dev/log'))
-        excepthook = self.logger.error
+        excepthook = self.handleError
+
+    def handleError(self, e: Exception) -> None:
+        self.logger.error(e)
+        self.showErrorDialog('Error', str(e))
 
     def LoadSettings(self) -> None:
         if(not path.isdir(self.cfgDir)):
             makedirs(self.cfgDir, exist_ok=True)
+            with open(cfgPath, 'x') as f:
+                f.write(base64.b64decode(const.DEFAULT_SETTINGS))
+            raise Exception(
+                'Default settings file created. Please fill in the file to continue.')
+
         # protect temporary .remmina file by limiting access to our config folder
         if(self.PLATFORM == 'linux'):
             os.chmod(self.cfgDir, 0o700)
@@ -103,12 +114,20 @@ class LapsMainWindow(QMainWindow):
             raise Exception("Could not find the settings file.")
 
         try:
-            with open(cfgPath) as f:
-                cfgJson = json.load(f)
+            with open(self.cfgPath) as f:
+                cfgJson: dict = json.load(f)
+                self.__isDefaultSettingFile(cfgPath, cfgJson)
                 self.cfg = ClientConfig.from_dict(cfgJson)
 
         except Exception as e:
-            self.showErrorDialog('Error loading settings file', str(e))
+            raise Exception('Error loading settings file: ' + str(e))
+
+    def __isDefaultSettingFile(self, cfgPath, cfgJson):
+        b64 = base64.b64encode(
+                    str(cfgJson).encode('utf-8')).decode('utf-8')
+        if(b64 == const.DEFAULT_SETTINGS):
+            raise Exception(
+                        'Default settings detected at \"' + cfgPath + '\". Exiting.')
 
     def SaveSettings(self) -> None:
         try:

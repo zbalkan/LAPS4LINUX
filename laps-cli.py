@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from pathlib import Path
-from os import path, makedirs, rename
-from datetime import datetime
-from dns import resolver, rdatatype
-import ldap3
-from ldap3.utils.conv import escape_filter_chars
-import getpass
 import argparse
+import base64
+import getpass
 import json
-import sys
-import os
-from configuration import CfgServer, ClientConfig
-import helpers
 import logging
 import logging.handlers
+import os
+import sys
+from datetime import datetime
+from os import makedirs, path, rename
+from pathlib import Path
+
+import ldap3
+from dns import rdatatype, resolver
+from ldap3.utils.conv import escape_filter_chars
+
+import constants as const
+import helpers
+from configuration import CfgServer, ClientConfig
 
 
 class LapsCli():
@@ -60,7 +64,7 @@ class LapsCli():
             self.logger.addHandler(
                 logging.handlers.TimedRotatingFileHandler(
                     filename='laps-gui.log', when='m', interval=1, backupCount=5))
-        else: # any *NIX variant
+        else:  # any *NIX variant
             self.logger.addHandler(
                 logging.handlers.SysLogHandler(address='/dev/log'))
         excepthook = self.logger.error
@@ -68,6 +72,11 @@ class LapsCli():
     def LoadSettings(self) -> None:
         if(not path.isdir(self.cfgDir)):
             makedirs(self.cfgDir, exist_ok=True)
+            with open(self.cfgPath, 'x') as f:
+                f.write(base64.b64decode(const.DEFAULT_SETTINGS).decode('utf-8'))
+            raise Exception(
+                'Default settings file created. Please fill in the file to continue.')
+
         # protect temporary .remmina file by limiting access to our config folder
         if(self.PLATFORM == 'linux'):
             os.chmod(self.cfgDir, 0o700)
@@ -83,10 +92,18 @@ class LapsCli():
 
         try:
             with open(cfgPath) as f:
-                cfgJson = json.load(f)
+                cfgJson: dict = json.load(f)
+                self.__isDefaultSettingFile(cfgPath, cfgJson)
                 self.cfg = ClientConfig.from_dict(cfgJson)
         except Exception as e:
-            print('Error loading settings file: ' + str(e))
+            raise Exception('Error loading settings file: ' + str(e))
+
+    def __isDefaultSettingFile(self, cfgPath, cfgJson):
+        b64 = base64.b64encode(
+                    str(cfgJson).encode('utf-8')).decode('utf-8')
+        if(b64 == const.DEFAULT_SETTINGS):
+            raise Exception(
+                        'Default settings detected at \"' + cfgPath + '\". Exiting.')
 
     def SaveSettings(self) -> None:
         try:
