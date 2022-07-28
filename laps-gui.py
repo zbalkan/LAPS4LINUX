@@ -18,7 +18,7 @@ from urllib.parse import unquote
 import ldap3
 from dns import rdatatype, resolver, rrset
 from ldap3.utils.conv import escape_filter_chars
-from PyQt5 import Qt
+from PyQt5 import QtCore
 from PyQt5.QtGui import QFont, QFontDatabase, QIcon
 from PyQt5.QtWidgets import (QAction, QApplication, QCalendarWidget, QDialog,
                              QDialogButtonBox, QGridLayout, QInputDialog, QLabel, QLineEdit,
@@ -243,7 +243,7 @@ class LapsMainWindow(QMainWindow):
         # Window Settings
         self.setMinimumSize(480, 300)
         self.setWindowTitle(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
-        self.statusBar.showMessage('Settings file: ' + self.cfgPath)
+        self.statusBar().showMessage('Settings file: ' + self.cfgPath)
 
         # Handle Parameter - Automatic Search
         urlToHandle: str = ''
@@ -289,7 +289,7 @@ class LapsMainWindow(QMainWindow):
                 connector = RemminaConnector(cfgDir=self.cfgDir)
                 connResult = connector.connect(
                     computer=self.txtSearchComputer.text(), username=self.cfgUsername, password=password, protocol=protocol)
-                self.statusBar.showMessage(connResult)
+                self.statusBar().showMessage(connResult)
             else:
                 if(self.useFreeRdp):
                     connector = FreeRDPConnector()
@@ -302,7 +302,7 @@ class LapsMainWindow(QMainWindow):
 
         except Exception as e:
             # display error
-            self.statusBar.showMessage(str(e))
+            self.statusBar().showMessage(str(e))
             print(str(e))
 
     def __extractPassword(self) -> str:
@@ -340,14 +340,14 @@ class LapsMainWindow(QMainWindow):
                 attributes=['SAMAccountname', 'distinguishedName']
             )
             for entry in self.connection.entries:
-                self.statusBar.showMessage(
+                self.statusBar().showMessage(
                     'Found: ' + str(entry['distinguishedName']) + ' (' + str(self.connection.server) + ')')
                 self.tmpDn = str(entry['distinguishedName'])
                 self.queryAttributes()
                 return
 
             # no result found
-            self.statusBar.showMessage(
+            self.statusBar().showMessage(
                 'No Result For: ' + computerName + ' (' + str(self.connection.server) + ')')
             attrs = self.cfg.ldap_attributes.to_dict()
             for key in attrs:
@@ -356,7 +356,7 @@ class LapsMainWindow(QMainWindow):
                 self.refLdapAttributesTextBoxes[str(title)].setText('')
         except Exception as e:
             # display error
-            self.statusBar.showMessage(str(e))
+            self.statusBar().showMessage(str(e))
             print(str(e))
             # reset connection
             self.server = None
@@ -617,7 +617,7 @@ class LapsAboutWindow(QDialog):
         labelAppName.setText(self.parentWidget().PRODUCT_NAME +
                              " v" + self.parentWidget().PRODUCT_VERSION)
         labelAppName.setStyleSheet("font-weight:bold")
-        labelAppName.setAlignment(Qt.AlignCenter)
+        labelAppName.setAlignment(QtCore.Qt.AlignCenter)
         layout.addWidget(labelAppName)
 
         labelCopyright = QLabel(self)
@@ -636,7 +636,7 @@ class LapsAboutWindow(QDialog):
             "<br>"
         )
         labelCopyright.setOpenExternalLinks(True)
-        labelCopyright.setAlignment(Qt.AlignCenter)
+        labelCopyright.setAlignment(QtCore.Qt.AlignCenter)
         layout.addWidget(labelCopyright)
 
         labelDescription = QLabel(self)
