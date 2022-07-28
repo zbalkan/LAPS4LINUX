@@ -24,6 +24,7 @@ from typing import NoReturn
 import typing
 import logging
 import logging.handlers
+from shutil import which
 
 
 class LapsMainWindow(QMainWindow):
@@ -149,7 +150,7 @@ class LapsMainWindow(QMainWindow):
 
         # Connection Menu
         # only available on linux as there is no reasonable way to open remote connections with password on other OSes
-        if(self.PLATFORM == 'linux'):
+        if(self.PLATFORM == 'linux' and which('remmina') is not None):
             connectMenu = mainMenu.addMenu('&Connect')
 
             rdpAction = QAction('&RDP', self)
@@ -259,13 +260,12 @@ class LapsMainWindow(QMainWindow):
     def RemoteConnection(self, protocol: str) -> None:
         if(self.txtSearchComputer.text().strip() == ''):
             return
-
+        # TODO: move remmina to a class
         try:
             import subprocess
             import time
             import configparser
             import base64
-            from shutil import which
             from Crypto.Cipher import DES3
 
             password = ''
@@ -277,9 +277,6 @@ class LapsMainWindow(QMainWindow):
                     if(title in self.refLdapAttributesTextBoxes):
                         password = self.refLdapAttributesTextBoxes[title].text(
                         )
-
-            if(which('remmina') is None):
-                raise Exception('Remmina is not installed')
 
             # passwords must be encrypted in remmina connection files using the secret found in remmina.pref
             remminaPrefPath = str(Path.home()) + '/.remmina/remmina.pref'
