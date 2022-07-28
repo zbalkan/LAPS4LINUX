@@ -53,7 +53,7 @@ class LapsCli():
         print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
         print(self.PRODUCT_WEBSITE)
 
-    def initLogger(self):
+    def initLogger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(

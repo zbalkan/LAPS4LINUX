@@ -64,7 +64,7 @@ class LapsMainWindow(QMainWindow):
         self.LoadSettings()
         self.InitUI()
 
-    def initLogger(self):
+    def initLogger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(

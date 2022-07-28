@@ -19,7 +19,6 @@ import logging.handlers
 import traceback
 import helpers as helpers
 from configuration import RunnerConfig
-import lapsexception
 
 
 class LapsRunner():
@@ -49,7 +48,7 @@ class LapsRunner():
             print(self.PRODUCT_WEBSITE)
         print('')
 
-    def initLogger(self):
+    def initLogger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(
