@@ -3,7 +3,7 @@
 yum install -y rpmdevtools rpmlint
 rpmdev-setuptree
 # Get the version from the python script
-VERSION=$(awk '/PRODUCT_VERSION\s+=/ { print $3 }' ../../laps-runner.py | tr -d \' )
+VERSION=$(awk '/PRODUCT_VERSION\s+=/ { print $3 }' ../laps-runner.py | tr -d \' )
 # Generate and fill the source folders
 mkdir -p laps4linux-$VERSION/usr/sbin
 mkdir -p laps4linux-$VERSION/etc/cron.hourly
