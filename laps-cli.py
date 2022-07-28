@@ -56,8 +56,13 @@ class LapsCli():
     def initLogger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
-        self.logger.addHandler(
-            logging.handlers.SysLogHandler(address='/dev/log'))
+        if(self.PLATFORM == 'windows'):
+            self.logger.addHandler(
+                logging.handlers.TimedRotatingFileHandler(
+                    path='./laps-gui.log', when='m', interval=1, backupCount=5))
+        else: # any *NIX variant
+            self.logger.addHandler(
+                logging.handlers.SysLogHandler(address='/dev/log'))
         excepthook = self.logger.error
 
     def LoadSettings(self) -> None:
