@@ -1,32 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from PyQt5 import Qt
-from PyQt5.QtWidgets import QMainWindow, QLabel, QGridLayout, QWidget, \
-    QMessageBox, QAction, QLineEdit, QPushButton, QInputDialog, QDialog, \
-    QDialogButtonBox, QVBoxLayout, QCalendarWidget, QApplication
-from PyQt5.QtGui import QIcon, QFont, QFontDatabase
-
-from urllib.parse import unquote
-from pathlib import Path
-from os import path, makedirs, rename
-from datetime import datetime
-from dns import resolver, rdatatype, rrset
-import ldap3
-from ldap3.utils.conv import escape_filter_chars
 import getpass
 import json
-import sys
-import os
-from configuration import CfgServer, ClientConfig
-import helpers
-from typing import NoReturn
-import typing
 import logging
 import logging.handlers
+import os
+import sys
+import typing
+from datetime import datetime
+from os import makedirs, path, rename
+from pathlib import Path
 from shutil import which
+from typing import Literal, NoReturn
+from urllib.parse import unquote
 
+import ldap3
+from dns import rdatatype, resolver, rrset
+from ldap3.utils.conv import escape_filter_chars
+from PyQt5 import Qt
+from PyQt5.QtGui import QFont, QFontDatabase, QIcon
+from PyQt5.QtWidgets import (QAction, QApplication, QCalendarWidget, QDialog,
+                             QDialogButtonBox, QGridLayout, QInputDialog, QLabel, QLineEdit,
+                             QMainWindow, QMessageBox, QPushButton, QVBoxLayout, QWidget)
+
+import helpers
+from configuration import CfgServer, ClientConfig
+from freerdpconnector import FreeRDPConnector
 from remminaconnector import RemminaConnector
+from sshconnector import SshConnector
 
 
 class LapsMainWindow(QMainWindow):
@@ -56,10 +58,15 @@ class LapsMainWindow(QMainWindow):
 
     cfgDir: str = str(Path.home()) + '/.config/laps-client'
     cfgPath: str = cfgDir + '/settings.json'
-    cfgPathRemmina: str = cfgDir + '/laps.remmina'
     cfgPathOld: str = str(Path.home()) + '/.laps-client.json'
     cfg: ClientConfig  # no default value
     refLdapAttributesTextBoxes: dict[str, QLineEdit] = {}
+
+    cfgPathRemmina: str = cfgDir + '/laps.remmina'
+    useRemmina: bool = False
+    useFreeRdp: bool = False
+    useSsh: bool = False
+    renderConnectMenu: bool = False
 
     def __init__(self) -> None:
         super(LapsMainWindow, self).__init__()
@@ -152,17 +159,22 @@ class LapsMainWindow(QMainWindow):
 
         # Connection Menu
         # only available on linux as there is no reasonable way to open remote connections with password on other OSes
-        if(self.PLATFORM == 'linux' and which('remmina') is not None):
-            connectMenu = mainMenu.addMenu('&Connect')
+        if(self.PLATFORM == 'linux'):
+            self.__checkRemoteConnectors()
 
-            rdpAction = QAction('&RDP', self)
-            rdpAction.setShortcut('F5')
-            rdpAction.triggered.connect(self.OnClickRDP)
-            connectMenu.addAction(rdpAction)
-            sshAction = QAction('&SSH', self)
-            sshAction.setShortcut('F6')
-            sshAction.triggered.connect(self.OnClickSSH)
-            connectMenu.addAction(sshAction)
+            if(self.renderConnectMenu == True):
+                connectMenu = mainMenu.addMenu('&Connect')
+
+                if(self.useRemmina == True or self.useFreeRdp == True):
+                    rdpAction = QAction('&RDP', self)
+                    rdpAction.setShortcut('F5')
+                    rdpAction.triggered.connect(self.OnClickRDP)
+                    connectMenu.addAction(rdpAction)
+                if(self.useRemmina == True or self.useSsh == True):
+                    sshAction = QAction('&SSH', self)
+                    sshAction.setShortcut('F6')
+                    sshAction.triggered.connect(self.OnClickSSH)
+                    connectMenu.addAction(sshAction)
 
         # Help Menu
         helpMenu = mainMenu.addMenu('&Help')
@@ -259,7 +271,7 @@ class LapsMainWindow(QMainWindow):
     def OnClickSSH(self) -> None:
         self.RemoteConnection('SSH')
 
-    def RemoteConnection(self, protocol: str) -> None:
+    def RemoteConnection(self, protocol: Literal['RDP', 'SSH']) -> None:
         if(self.txtSearchComputer.text().strip() == ''):
             return
 
@@ -268,17 +280,27 @@ class LapsMainWindow(QMainWindow):
             return
 
         try:
-            connector = RemminaConnector(cfgDir=self.cfgDir)
-            connResult = connector.connect(
-                computer=self.txtSearchComputer.text(), password=password, protocol=protocol)
-            self.statusBar.showMessage(connResult)
+            if(self.useRemmina):
+                connector = RemminaConnector(cfgDir=self.cfgDir)
+                connResult = connector.connect(
+                    computer=self.txtSearchComputer.text(), username=self.cfgUsername, password=password, protocol=protocol)
+                self.statusBar.showMessage(connResult)
+            else:
+                if(self.useFreeRdp):
+                    connector = FreeRDPConnector()
+                    connector.connect(computer=self.txtSearchComputer.text(),
+                                      username=self.cfgUsername, password=password)
+                if(self.useSsh):
+                    connector = SshConnector()
+                    connector.connect(computer=self.txtSearchComputer.text(),
+                                      username=self.cfgUsername, password=password)
 
         except Exception as e:
             # display error
             self.statusBar.showMessage(str(e))
             print(str(e))
 
-    def __extractPassword(self):
+    def __extractPassword(self) -> str:
         password = ''
         attrs = self.cfg.ldap_attributes.to_dict()
         for key in attrs:
@@ -402,7 +424,7 @@ class LapsMainWindow(QMainWindow):
             try:
                 res: resolver.Answer = resolver.query(
                     qname=f"_ldap._tcp.{self.cfgDomain}", rdtype=rdatatype.SRV, lifetime=10)
-                for srv in res.rrset:
+                for srv in res.rrset:  # type: ignore
                     serverEntry = CfgServer(
                         str(srv.target), srv.port, (srv.port == 636))
                     print('DNS auto discovery found server: ' +
@@ -560,6 +582,18 @@ class LapsMainWindow(QMainWindow):
         msg.setDetailedText(additionalText)
         msg.setStandardButtons(QMessageBox.Ok)
         retval = msg.exec_()
+
+    def __checkRemoteConnectors(self) -> None:
+        if(which('remmina') is not None):
+            self.useRemmina = True
+            self.renderConnectMenu = True
+        else:
+            if(which('xfreerdp')):
+                self.useFreeRdp = True
+                self.renderConnectMenu = True
+            if(which('ssh')):
+                self.useSsh = True
+                self.renderConnectMenu = True
 
 
 class LapsAboutWindow(QDialog):
