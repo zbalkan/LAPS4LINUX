@@ -183,25 +183,6 @@ class LapsMainWindow(QMainWindow):
         quitAction.triggered.connect(self.OnQuit)
         fileMenu.addAction(quitAction)
 
-        # Connection Menu
-        # only available on linux as there is no reasonable way to open remote connections with password on other OSes
-        if(self.PLATFORM == 'linux'):
-            self.__checkRemoteConnectors()
-
-            if(self.renderConnectMenu == True):
-                connectMenu = mainMenu.addMenu('&Connect')
-
-                if(self.useRemmina == True or self.useFreeRdp == True):
-                    rdpAction = QAction('&RDP', self)
-                    rdpAction.setShortcut('F5')
-                    rdpAction.triggered.connect(self.OnClickRDP)
-                    connectMenu.addAction(rdpAction)
-                if(self.useRemmina == True or self.useSsh == True):
-                    sshAction = QAction('&SSH', self)
-                    sshAction.setShortcut('F6')
-                    sshAction.triggered.connect(self.OnClickSSH)
-                    connectMenu.addAction(sshAction)
-
         # Help Menu
         helpMenu = mainMenu.addMenu('&Help')
 
@@ -290,54 +271,6 @@ class LapsMainWindow(QMainWindow):
 
     def OnReturnSearch(self) -> None:
         self.OnClickSearch()
-
-    def OnClickRDP(self) -> None:
-        self.RemoteConnection('RDP')
-
-    def OnClickSSH(self) -> None:
-        self.RemoteConnection('SSH')
-
-    def RemoteConnection(self, protocol: Literal['RDP', 'SSH']) -> None:
-        if(self.txtSearchComputer.text().strip() == ''):
-            return
-
-        password = self.__extractPassword()
-        if(password == ''):
-            return
-
-        try:
-            if(self.useRemmina):
-                connector = RemminaConnector(cfgDir=self.cfgDir)
-                connResult = connector.connect(
-                    computer=self.txtSearchComputer.text(), username=self.cfgUsername, password=password, protocol=protocol)
-                self.statusBar().showMessage(connResult)
-            else:
-                if(self.useFreeRdp):
-                    connector = FreeRDPConnector()
-                    connector.connect(computer=self.txtSearchComputer.text(),
-                                      username=self.cfgUsername, password=password)
-                if(self.useSsh):
-                    connector = SshConnector()
-                    connector.connect(computer=self.txtSearchComputer.text(),
-                                      username=self.cfgUsername, password=password)
-
-        except Exception as e:
-            # display error
-            self.statusBar().showMessage(str(e))
-            print(str(e))
-
-    def __extractPassword(self) -> str:
-        password = ''
-        attrs = self.cfg.ldap_attributes.to_dict()
-        for key in attrs:
-            title = key
-            attribute = attrs[key]
-            if(self.cfg.ldap_attribute_password == attribute):  # TODO: Why do we need this control?
-                if(title in self.refLdapAttributesTextBoxes):
-                    password = self.refLdapAttributesTextBoxes[title].text(
-                    )
-
-        return password
 
     def OnClickSearch(self) -> None:
         # check and escape input
