@@ -13,7 +13,7 @@ from datetime import datetime
 from os import makedirs, path, rename
 from pathlib import Path
 from shutil import which
-from typing import Literal, NoReturn
+from typing import NoReturn
 from urllib.parse import unquote
 
 import ldap3
@@ -28,9 +28,6 @@ from PyQt5.QtWidgets import (QAction, QApplication, QCalendarWidget, QDialog,
 import constants as const
 import helpers
 from configuration import CfgServer, ClientConfig
-from freerdpconnector import FreeRDPConnector
-from remminaconnector import RemminaConnector
-from sshconnector import SshConnector
 
 
 class LapsMainWindow(QMainWindow):
@@ -74,11 +71,11 @@ class LapsMainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super(LapsMainWindow, self).__init__()
-        self.initLogger()
-        self.LoadSettings()
+        self.init_logger()
+        self.load_settings()
         self.InitUI()
 
-    def initLogger(self) -> None:
+    def init_logger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
         if(self.PLATFORM == 'win32'):
@@ -88,62 +85,11 @@ class LapsMainWindow(QMainWindow):
         else:  # any *NIX variant
             self.logger.addHandler(
                 logging.handlers.SysLogHandler(address='/dev/log'))
-        excepthook = self.handleError
+        excepthook = self.handle_error
 
-    def handleError(self, e: Exception) -> None:
+    def handle_error(self, e: Exception) -> None:
         self.logger.error(e)
-        self.showErrorDialog('Error', str(e))
-
-    def LoadSettings(self) -> None:
-        if(not path.isdir(self.cfgDir)):
-            makedirs(self.cfgDir, exist_ok=True)
-            with open(cfgPath, 'x') as f:
-                f.write(base64.b64decode(const.DEFAULT_SETTINGS))
-            raise Exception(
-                'Default settings file created. Please fill in the file to continue.')
-
-        # protect temporary .remmina file by limiting access to our config folder
-        if(self.PLATFORM == 'linux'):
-            os.chmod(self.cfgDir, 0o700)
-        if(path.exists(self.cfgPathOld)):
-            rename(self.cfgPathOld, self.cfgPath)
-
-        if(path.isfile(self.cfgPath)):
-            cfgPath = self.cfgPath
-        elif(path.isfile(self.cfgPresetPath)):
-            cfgPath = self.cfgPresetPath
-        else:
-            raise Exception("Could not find the settings file.")
-
-        try:
-            with open(self.cfgPath) as f:
-                cfgJson: dict = json.load(f)
-                self.__isDefaultSettingFile(cfgPath, cfgJson)
-                self.cfg = ClientConfig.from_dict(cfgJson)
-
-        except Exception as e:
-            raise Exception('Error loading settings file: ' + str(e))
-
-    def __isDefaultSettingFile(self, cfgPath, cfgJson):
-        b64 = base64.b64encode(
-                    str(cfgJson).encode(self.ENCODING)).decode(self.ENCODING)
-        if(b64 == const.DEFAULT_SETTINGS):
-            raise Exception(
-                        'Default settings detected at \"' + cfgPath + '\". Exiting.')
-
-    def SaveSettings(self) -> None:
-        try:
-            with open(self.cfgPath, 'w') as json_file:
-                json.dump({
-                    'server': self.cfg.server,
-                    'domain': self.cfg.domain,
-                    'username': self.cfg.username,
-                    'ldap-attribute-password': self.cfg.ldap_attribute_password,
-                    'ldap-attribute-password-expiry': self.cfg.ldap_attribute_password_expiry,
-                    'ldap-attributes': self.cfg.ldap_attributes
-                }, json_file, indent=4)
-        except Exception as e:
-            self.showErrorDialog('Error saving settings file', str(e))
+        self.show_error_dialog('Error', str(e))
 
     def InitUI(self) -> None:
         # Icon Selection
@@ -281,14 +227,14 @@ class LapsMainWindow(QMainWindow):
 
         # ask for credentials
         self.btnSearchComputer.setEnabled(False)
-        if not self.checkCredentialsAndConnect():
+        if not self.check_credentials_and_connect():
             self.btnSearchComputer.setEnabled(True)
             return
 
         try:
             # start LDAP search
             self.connection.search(
-                search_base=self.createLdapBase(self.cfgDomain),
+                search_base=self.create_ldap_base(self.cfgDomain),
                 search_filter='(&(objectCategory=computer)(name=' +
                 computerName + '))',
                 attributes=['SAMAccountname', 'distinguishedName']
@@ -297,7 +243,7 @@ class LapsMainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     'Found: ' + str(entry['distinguishedName']) + ' (' + str(self.connection.server) + ')')
                 self.tmpDn = str(entry['distinguishedName'])
-                self.queryAttributes()
+                self.query_attributes()
                 return
 
             # no result found
@@ -329,8 +275,59 @@ class LapsMainWindow(QMainWindow):
         dlg.refMainWindows = self
         dlg.exec_()
 
-    def queryAttributes(self) -> None:
-        if(not self.reconnectForAttributeQuery()):
+    def load_settings(self) -> None:
+        if(not path.isdir(self.cfgDir)):
+            makedirs(self.cfgDir, exist_ok=True)
+            with open(cfgPath, 'x') as f:
+                f.write(base64.b64decode(const.DEFAULT_SETTINGS))
+            raise Exception(
+                'Default settings file created. Please fill in the file to continue.')
+
+        # protect temporary .remmina file by limiting access to our config folder
+        if(self.PLATFORM == 'linux'):
+            os.chmod(self.cfgDir, 0o700)
+        if(path.exists(self.cfgPathOld)):
+            rename(self.cfgPathOld, self.cfgPath)
+
+        if(path.isfile(self.cfgPath)):
+            cfgPath = self.cfgPath
+        elif(path.isfile(self.cfgPresetPath)):
+            cfgPath = self.cfgPresetPath
+        else:
+            raise Exception("Could not find the settings file.")
+
+        try:
+            with open(self.cfgPath) as f:
+                cfgJson: dict = json.load(f)
+                self.is_default_setting_file(cfgPath, cfgJson)
+                self.cfg = ClientConfig.from_dict(cfgJson)
+
+        except Exception as e:
+            raise Exception('Error loading settings file: ' + str(e))
+
+    def is_default_setting_file(self, cfgPath, cfgJson):
+        b64 = base64.b64encode(
+            str(cfgJson).encode(self.ENCODING)).decode(self.ENCODING)
+        if(b64 == const.DEFAULT_SETTINGS):
+            raise Exception(
+                'Default settings detected at \"' + cfgPath + '\". Exiting.')
+
+    def save_settings(self) -> None:
+        try:
+            with open(self.cfgPath, 'w') as json_file:
+                json.dump({
+                    'server': self.cfg.server,
+                    'domain': self.cfg.domain,
+                    'username': self.cfg.username,
+                    'ldap-attribute-password': self.cfg.ldap_attribute_password,
+                    'ldap-attribute-password-expiry': self.cfg.ldap_attribute_password_expiry,
+                    'ldap-attributes': self.cfg.ldap_attributes
+                }, json_file, indent=4)
+        except Exception as e:
+            self.show_error_dialog('Error saving settings file', str(e))
+
+    def query_attributes(self) -> None:
+        if(not self.reconnect_for_attribute_query()):
             self.btnSetExpirationTime.setEnabled(False)
             self.btnSearchComputer.setEnabled(True)
             return
@@ -368,7 +365,7 @@ class LapsMainWindow(QMainWindow):
                     textBox.setText(str(entry[str(attribute)]))
             return
 
-    def checkCredentialsAndConnect(self) -> bool:
+    def check_credentials_and_connect(self) -> bool:
         # ask for server address and domain name if not already set via config file
         if self.cfgDomain == "":
             item, ok = QInputDialog.getText(
@@ -398,7 +395,7 @@ class LapsMainWindow(QMainWindow):
                 if ok and item:
                     self.cfg.server.append(CfgServer(item, 389, False))
                     self.server = None
-        self.SaveSettings()
+        self.save_settings()
 
         # establish server connection
         if self.server == None:
@@ -416,7 +413,8 @@ class LapsMainWindow(QMainWindow):
                 self.server = ldap3.ServerPool(
                     serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
             except Exception as e:
-                self.showErrorDialog('Error connecting to LDAP server', str(e))
+                self.show_error_dialog(
+                    'Error connecting to LDAP server', str(e))
                 return False
 
         # try to bind to server via Kerberos
@@ -454,7 +452,7 @@ class LapsMainWindow(QMainWindow):
                 self.connection = None
             else:
                 return False
-        self.SaveSettings()
+        self.save_settings()
 
         # try to bind to server with username and password
         try:
@@ -470,12 +468,12 @@ class LapsMainWindow(QMainWindow):
         except Exception as e:
             self.cfgUsername = ''
             self.cfgPassword = ''
-            self.showErrorDialog('Error binding to LDAP server', str(e))
+            self.show_error_dialog('Error binding to LDAP server', str(e))
             return False
 
         return True  # return if connection created successfully
 
-    def reconnectForAttributeQuery(self) -> bool:
+    def reconnect_for_attribute_query(self) -> bool:
         # global catalog was not used for search - we can use the same connection for attribute query
         if(not self.gcModeOn):
             return True
@@ -511,10 +509,10 @@ class LapsMainWindow(QMainWindow):
                                                )
             return True
         except Exception as e:
-            self.showErrorDialog('Error binding to LDAP server', str(e))
+            self.show_error_dialog('Error binding to LDAP server', str(e))
             return False
 
-    def createLdapBase(self, domain: str) -> str:
+    def create_ldap_base(self, domain: str) -> str:
         # convert FQDN "example.com" to LDAP path notation "DC=example,DC=com"
         search_base: str = ""
         base = domain.split(".")
@@ -522,7 +520,7 @@ class LapsMainWindow(QMainWindow):
             search_base += "DC=" + b + ","
         return search_base[:-1]
 
-    def showErrorDialog(self, title: str, text: str, additionalText: str = '') -> None:
+    def show_error_dialog(self, title: str, text: str, additionalText: str = '') -> None:
         print('Error: ' + text)
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
@@ -532,7 +530,7 @@ class LapsMainWindow(QMainWindow):
         msg.setStandardButtons(QMessageBox.Ok)
         retval = msg.exec_()
 
-    def showInfoDialog(self, title: str, text: str, additionalText: str = '') -> None:
+    def show_info_dialog(self, title: str, text: str, additionalText: str = '') -> None:
         print('Info: ' + text)
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Information)
@@ -658,22 +656,22 @@ class LapsCalendarWindow(QDialog):
             parentWidget.connection.modify(parentWidget.tmpDn, {parentWidget.cfg.ldap_attribute_password_expiry: [
                                            (ldap3.MODIFY_REPLACE, [str(newExpirationDateTime)])]})
             if parentWidget.connection.result['result'] == 0:
-                parentWidget.showInfoDialog('Success',
-                                            'Expiration date successfully changed to ' +
-                                            str(newExpirationDate) + '.',
-                                            parentWidget.tmpDn +
-                                            ' (' + str(parentWidget.connection.server) + ')'
-                                            )
+                parentWidget.show_info_dialog('Success',
+                                              'Expiration date successfully changed to ' +
+                                              str(newExpirationDate) + '.',
+                                              parentWidget.tmpDn +
+                                              ' (' + str(parentWidget.connection.server) + ')'
+                                              )
                 # update values in main window
                 parentWidget.OnClickSearch()
                 self.close()
             else:
-                parentWidget.showErrorDialog('Error', 'Unable to change expiration date to ' + str(newExpirationDateTime) + '.' + "\n\n" + str(
+                parentWidget.show_error_dialog('Error', 'Unable to change expiration date to ' + str(newExpirationDateTime) + '.' + "\n\n" + str(
                     parentWidget.connection.result['message']), parentWidget.tmpDn + ' (' + str(parentWidget.connection.server) + ')')
 
         except Exception as e:
             # display error
-            parentWidget.showErrorDialog(
+            parentWidget.show_error_dialog(
                 'Error setting new expiration date', str(e))
             # reset connection
             parentWidget.server = None

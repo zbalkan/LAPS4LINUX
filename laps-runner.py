@@ -41,7 +41,7 @@ class LapsRunner():
     tmpExpiryDate: datetime  # no default value
 
     def __init__(self, *args, **kwargs) -> None:
-        self.initLogger()
+        self.init_logger()
         # show note
         print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
         if not 'slub' in self.cfg.domain:
@@ -50,30 +50,30 @@ class LapsRunner():
             print(self.PRODUCT_WEBSITE)
         print('')
 
-    def initLogger(self) -> None:
+    def init_logger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(
             logging.handlers.SysLogHandler(address='/dev/log'))
         excepthook = self.logger.error
 
-    def getHostname(self) -> str:
+    def get_hostname(self) -> str:
         if(self.cfg.hostname.strip() == ''):
             return socket.gethostname().upper()
         else:
             return self.cfg.hostname.strip().upper()
 
-    def initKerberos(self) -> None:
+    def init_kerberos(self) -> None:
         # query new kerberos ticket
         cmd: list[str] = ['kinit', '-k', '-c', self.cfg.cred_cache_file,
-                          self.getHostname() + '$']
+                          self.get_hostname() + '$']
         res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
         if res.returncode != 0:
             raise Exception(
                 ' '.join(cmd) + ' returned non-zero exit code ' + str(res.returncode))
 
-    def connectToServer(self) -> None:
+    def connect_to_server(self) -> None:
         # set environment variables for kerberos operations
         os.environ['KRB5CCNAME'] = self.cfg.cred_cache_file
         os.environ['KRB5_CLIENT_KTNAME'] = self.cfg.client_keytab_file
@@ -105,14 +105,14 @@ class LapsRunner():
             print("No connection established")
             self.logger.exception(e)
 
-    def searchComputer(self) -> bool:
+    def search_computer(self) -> bool:
         # check and escape input
         computerName: str = escape_filter_chars(
-            self.getHostname())
+            self.get_hostname())
 
         # start query
         self.connection.search(
-            search_base=self.createLdapBase(self.cfg.domain),
+            search_base=self.create_ldap_base(self.cfg.domain),
             search_filter='(&(objectCategory=computer)(name=' +
             computerName + '))',
             attributes=[self.cfg.ldap_attribute_password,
@@ -143,15 +143,15 @@ class LapsRunner():
         # self.tmpExpiryDate
         return False
 
-    def updatePassword(self) -> None:
+    def update_password(self) -> None:
         # generate new values
-        newPassword = self.generatePassword()
+        newPassword = self.generate_password()
         newPasswordHashed = SHA512.new(bytes(newPassword, self.ENCODING))
         newExpirationDate = datetime.now(
         ) + timedelta(days=self.cfg.password_days_valid)
 
         # update in directory
-        self.setPasswordAndExpiry(newPassword, newExpirationDate)
+        self.set_password_and_expiry(newPassword, newExpirationDate)
 
         # update password in local database
         cmd: list[str] = ['usermod', '-p',
@@ -166,7 +166,7 @@ class LapsRunner():
             raise Exception(
                 ' '.join(cmd) + ' returned non-zero exit code ' + str(res.returncode))
 
-    def setPasswordAndExpiry(self, newPassword: str, newExpirationDate: datetime) -> None:
+    def set_password_and_expiry(self, newPassword: str, newExpirationDate: datetime) -> None:
         # check if dn of target computer object is known
         if self.tmpDn.strip() == '':
             return
@@ -185,17 +185,17 @@ class LapsRunner():
         else:
             raise Exception('Could not update password in LDAP directory.')
 
-    def generatePassword(self) -> str:
+    def generate_password(self) -> str:
         return ''.join(secrets.choice(self.cfg.password_alphabet) for i in range(len(self.cfg.password_alphabet)))
 
-    def createLdapBase(self, domain: str) -> str:
+    def create_ldap_base(self, domain: str) -> str:
         search_base: str = ""
         base = domain.split(".")
         for b in base:
             search_base += "DC=" + b + ","
         return search_base[:-1]
 
-    def LoadSettings(self) -> None:
+    def load_settings(self) -> None:
         if(not path.isfile(self.cfgPath)):
             raise Exception('Config file not found: ' + self.cfgPath)
         with open(self.cfgPath) as f:
@@ -221,17 +221,17 @@ def main() -> None:
 
     # start workflow
     try:
-        runner.LoadSettings()
-        runner.initKerberos()
-        runner.connectToServer()
-        runner.searchComputer()
+        runner.load_settings()
+        runner.init_kerberos()
+        runner.connect_to_server()
+        runner.search_computer()
 
         if runner.tmpExpiryDate < datetime.now():
             print('Updating password (expired ' + str(runner.tmpExpiryDate) + ')')
-            runner.updatePassword()
+            runner.update_password()
         elif args.force:
             print('Updating password (forced update)...')
-            runner.updatePassword()
+            runner.update_password()
         else:
             print('Password will expire in ' +
                   str(runner.tmpExpiryDate) + ', no need to update.')

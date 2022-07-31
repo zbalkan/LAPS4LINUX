@@ -51,15 +51,15 @@ class LapsCli():
     cfg: ClientConfig  # no default value
 
     def __init__(self, useKerberos: bool) -> None:
-        self.initLogger()
-        self.LoadSettings()
+        self.init_logger()
+        self.load_settings()
         self.useKerberos = useKerberos
 
         # show version information
         print(self.PRODUCT_NAME + ' v' + self.PRODUCT_VERSION)
         print(self.PRODUCT_WEBSITE)
 
-    def initLogger(self) -> None:
+    def init_logger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
         if(self.PLATFORM == 'win32'):
@@ -71,11 +71,12 @@ class LapsCli():
                 logging.handlers.SysLogHandler(address='/dev/log'))
         excepthook = self.logger.error
 
-    def LoadSettings(self) -> None:
+    def load_settings(self) -> None:
         if(not path.isdir(self.cfgDir)):
             makedirs(self.cfgDir, exist_ok=True)
             with open(self.cfgPath, 'x') as f:
-                f.write(base64.b64decode(const.DEFAULT_SETTINGS).decode(self.ENCODING))
+                f.write(base64.b64decode(
+                    const.DEFAULT_SETTINGS).decode(self.ENCODING))
             raise Exception(
                 'Default settings file created. Please fill in the file to continue.')
 
@@ -95,19 +96,19 @@ class LapsCli():
         try:
             with open(cfgPath) as f:
                 cfgJson: dict = json.load(f)
-                self.__isDefaultSettingFile(cfgPath, cfgJson)
+                self.is_default_setting_file(cfgPath, cfgJson)
                 self.cfg = ClientConfig.from_dict(cfgJson)
         except Exception as e:
             raise Exception('Error loading settings file: ' + str(e))
 
-    def __isDefaultSettingFile(self, cfgPath, cfgJson):
+    def is_default_setting_file(self, cfgPath, cfgJson):
         b64 = base64.b64encode(
-                    str(cfgJson).encode(self.ENCODING)).decode(self.ENCODING)
+            str(cfgJson).encode(self.ENCODING)).decode(self.ENCODING)
         if(b64 == const.DEFAULT_SETTINGS):
             raise Exception(
-                        'Default settings detected at \"' + cfgPath + '\". Exiting.')
+                'Default settings detected at \"' + cfgPath + '\". Exiting.')
 
-    def SaveSettings(self) -> None:
+    def save_settings(self) -> None:
         try:
             with open(self.cfgPath, 'w') as json_file:
                 json.dump({
@@ -121,7 +122,7 @@ class LapsCli():
         except Exception as e:
             print('Error saving settings file: ' + str(e))
 
-    def SearchComputer(self, computerName: str) -> None:
+    def search_computer(self, computerName: str) -> None:
         # check and escape input
         if computerName.strip() == '':
             return
@@ -130,9 +131,9 @@ class LapsCli():
 
         # ask for credentials and print connection details
         print('')
-        if not self.checkCredentialsAndConnect():
+        if not self.check_credentials_and_connect():
             return
-        self.printResult('Connection', str(
+        self.print_result('Connection', str(
             self.connection.server) + ' ' + self.cfg.username + '@' + self.cfg.domain)
 
         try:
@@ -147,7 +148,7 @@ class LapsCli():
             # start LDAP search
             count = 0
             self.connection.search(
-                search_base=self.createLdapBase(self.cfg.domain),
+                search_base=self.create_ldap_base(self.cfg.domain),
                 search_filter='(&(objectCategory=computer)(name=' +
                 computerName + '))',
                 attributes=attributes
@@ -167,17 +168,17 @@ class LapsCli():
                           ' : ' + str.join(' : ', displayValues))
                 # display single result
                 else:
-                    self.printResult('Found', str(entry['distinguishedName']))
+                    self.print_result('Found', str(entry['distinguishedName']))
                     self.tmpDn = str(entry['distinguishedName'])
-                    self.queryAttributes()
+                    self.query_attributes()
                     return
 
             # no result found
             if count == 0:
-                self.printResult('No Result For', computerName)
+                self.print_result('No Result For', computerName)
         except Exception as e:
             # display error
-            self.printResult('Error', str(e))
+            self.print_result('Error', str(e))
             print(str(e))
             # reset connection
             self.server = None
@@ -185,7 +186,7 @@ class LapsCli():
 
         self.tmpDn = ''
 
-    def SetExpiry(self, newExpirationDateTimeString: str) -> None:
+    def set_expiry(self, newExpirationDateTimeString: str) -> None:
         # check if dn of target computer object is known
         if self.tmpDn.strip() == '':
             return
@@ -195,7 +196,7 @@ class LapsCli():
             newExpirationDate = datetime.strptime(
                 newExpirationDateTimeString, '%Y-%m-%d %H:%M:%S')
             newExpirationDateTime = helpers.dt_to_filetime(newExpirationDate)
-            self.printResult('New Expiration', str(
+            self.print_result('New Expiration', str(
                 newExpirationDateTime) + ' (' + str(newExpirationDate) + ')')
 
             # start LDAP modify
@@ -209,13 +210,13 @@ class LapsCli():
 
         except Exception as e:
             # display error
-            self.printResult('Error', str(e))
+            self.print_result('Error', str(e))
             # reset connection
             self.server = None
             self.connection = None
 
-    def queryAttributes(self) -> None:
-        if(not self.reconnectForAttributeQuery()):
+    def query_attributes(self) -> None:
+        if(not self.reconnect_for_attribute_query()):
             return
 
         # compile query attributes
@@ -239,20 +240,20 @@ class LapsCli():
                 attribute = attrs[key]
                 if(attribute == self.cfg.ldap_attribute_password_expiry):
                     try:
-                        self.printResult(title, str(entry[attribute]) + ' (' + str(
+                        self.print_result(title, str(entry[attribute]) + ' (' + str(
                             helpers.filetime_to_dt(int(str(entry[attribute])))) + ')')
                     except Exception as e:
-                        self.printResult('Error', str(e))
-                        self.printResult(
+                        self.print_result('Error', str(e))
+                        self.print_result(
                             title, str(entry[attribute]))
                 else:
-                    self.printResult(title, str(entry[attribute]))
+                    self.print_result(title, str(entry[attribute]))
             return
 
-    def printResult(self, attribute: str, value: str) -> None:
+    def print_result(self, attribute: str, value: str) -> None:
         print((attribute + ':').ljust(26) + value)
 
-    def checkCredentialsAndConnect(self) -> bool:
+    def check_credentials_and_connect(self) -> bool:
         # ask for server address and domain name if not already set via config file
         if self.cfg.domain == "":
             item = input('♕ Domain Name (e.g. example.com): ')
@@ -280,7 +281,7 @@ class LapsCli():
                 if item and item.strip() != "":
                     self.cfg.server.append(CfgServer(item, 389, False))
                     self.server = None
-        self.SaveSettings()
+        self.save_settings()
 
         # establish server connection
         if self.server == None:
@@ -333,7 +334,7 @@ class LapsCli():
                 self.connection = None
             else:
                 return False
-        self.SaveSettings()
+        self.save_settings()
 
         # try to bind to server with username and password
         try:
@@ -355,7 +356,7 @@ class LapsCli():
 
         return True
 
-    def reconnectForAttributeQuery(self) -> bool:
+    def reconnect_for_attribute_query(self) -> bool:
         # global catalog was not used for search - we can use the same connection for attribute query
         if(not self.gcModeOn):
             return True
@@ -394,7 +395,7 @@ class LapsCli():
             print('Error binding to LDAP server: ' + str(e))
             return False
 
-    def createLdapBase(self, domain: str) -> str:
+    def create_ldap_base(self, domain: str) -> str:
         # convert FQDN "example.com" to LDAP path notation "DC=example,DC=com"
         search_base: str = ""
         base = domain.split(".")
@@ -426,14 +427,14 @@ def main() -> None:
         validSearches = 0
         for term in args.search:
             if(term.strip() == '*'):
-                cli.SearchComputer('*')
+                cli.search_computer('*')
                 return
 
             if(term.strip() != ''):
                 validSearches += 1
-                cli.SearchComputer(term.strip())
+                cli.search_computer(term.strip())
                 if(args.set_expiry and args.set_expiry.strip() != ''):
-                    cli.SetExpiry(args.set_expiry.strip())
+                    cli.set_expiry(args.set_expiry.strip())
 
         # if at least one computername was given, we do not start the interactive shell
         if(validSearches > 0):
@@ -449,7 +450,7 @@ def main() -> None:
         if(cmd == 'exit' or cmd == 'quit'):
             return
         else:
-            cli.SearchComputer(cmd.strip())
+            cli.search_computer(cmd.strip())
 
 
 if __name__ == '__main__':
