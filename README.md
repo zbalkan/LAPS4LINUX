@@ -1,11 +1,14 @@
 # LAPS4LINUX
+
 [![CodeQL](https://github.com/zbalkan/LAPS4LINUX/actions/workflows/codeql.yml/badge.svg)](https://github.com/zbalkan/LAPS4LINUX/actions/workflows/codeql.yml)
 [![DevSkim](https://github.com/zbalkan/LAPS4LINUX/actions/workflows/devskim.yml/badge.svg)](https://github.com/zbalkan/LAPS4LINUX/actions/workflows/devskim.yml)
 
 Linux implementation of the Local Administrator Password Solution (LAPS) from Microsoft.
 
 ## Management Client
+
 ### Command Line Interface (CLI)
+
 ```bash
 $ ./laps-cli.py notebook01 --set-expiry "2021-04-28 01:01:01"
 LAPS4LINUX CLI v1.0.0
@@ -32,18 +35,23 @@ NOTEBOOK02$ : 123abc
 ```
 
 ### Graphical User Interface (GUI)
+
 ![screenshot](.github/screenshot.png)
 
 ### Kerberos Authentication
+
 The client (both GUI and CLI) supports Kerberos authentication which means that you can use the client without entering a password if you are logged in with a domain account and have a valid Kerberos ticket. If not, ldap3's "simple" authentication is used as fallback and the client will ask you for username and password.
 
 ### SSL Connection
+
 It is highly recommended to turn on SSL in the config file (`~/.config/laps-client/settings.json`) if your LDAP server has a valid certificate (set `ssl` to `true` and `port` to `636`). You can also configure multiple LDAP server in the config file.
 
 ### Domain Forest Searches
+
 If you are managing multiple domains, you probably want to search for a computer in all domains. Please use the global catalog for this. This means that you need to set the option `gc-port` in the configuration file of all servers, e.g. to `3268` (LDAP) or `3269` (LDAPS).
 
 Example:
+
 ```json
 {
     "server": [
@@ -62,29 +70,36 @@ Example:
 Since the global catalog is read only, LAPS4LINUX will switch to "normal" LDAP(S) port when you want to change the password expiry date. That's why, the `port` option is still required even if a `gc-port` is given!
 
 ### Query Additional Attributes (Customization)
+
 LAPS4LINUX allows you to query additional attributes besides the admin password which might be of interest for you. For that, just edit the config file `~/.config/laps-client/settings.json` and enter the additional LDAP attributes you'd like to query into the settings array `"ldap-attributes"`.
 
 If you like, you can hide the "Set Expiration" button by entering an empty string for the setting `ldap-attribute-password-expiry`.
 
 ### Default Config File
+
 You can create a preset config file `/etc/laps-client.json` which will be loaded if `~/.config/laps-client/settings.json` does not exist. With this, you can distribute default settings (all relevant LDAP attributes, SSL on etc.) for new users.
 
 ### Remote Access
-On Linux, the GUI allows you to directly open RDP or SSH connections via [Remmina](https://remmina.org/) from the menu. Please make sure you have installed the [latest Remmina](https://remmina.org/how-to-install-remmina/) with RDP and SSH extensions.
+
+Remote access to devices using local administrator accounts should not be allowed. Therefore, remote access capabilities are removed drom the application to support cyber hygiene best practices.
 
 ### `laps://` Protocol Scheme
+
 The GUI supports the protocol scheme `laps://`, which means you can call the GUI like `laps-gui.py laps://HOSTNAME` to automatically search `HOSTNAME` after startup. This feature is mainly intended to use with the [OCO server](https://github.com/schorschii/OCO-Server) web frontend ("[COMPUTER_COMMANDS](https://github.com/schorschii/OCO-Server/blob/master/docs/Computers.md#client-commands)").
 
 ### Windows and macOS
+
 The GUI is also executable under Windows and macOS. It's ported to Windows because of the additional features that the original LAPS GUI did not have (query custom attributes, OCO integration).
 
 ## Runner
+
 The runner is responsible for automatically changing the admin password of a Linux client and updating it in the LDAP directory. This assumes that Kerberos (`krb5-user`) is installed and that the machine is already joined to your domain using Samba's `net ads join`, PBIS' `domainjoin-cli join` or the modern `adcli join` command (recommended).
 
 A detailed domain join guide is available [on my website](https://georg-sieber.de/?page=blog-linux-im-unternehmen) (attention: only in German).
 
 The runner should be called periodically via cron. It decides by the expiration time stored in the LDAP directory when the password should be changed.
-```
+
+```bash
 *** /etc/cron.hourly/laps-runner ***
 
 #!/bin/sh
@@ -96,19 +111,24 @@ Please configure the runner by editing the configuration file `/etc/laps-runner.
 You can call the runner with the `-f` parameter to force updating the password directly after installation. You should do this to check if the runner is working properly.
 
 ### Hostnames Longer Than 15 Characters
+
 Computer objects in the Microsoft Active Directory can not be longer than 15 characters. If you join a computer with a longer hostname, it will be registered with a different "short name". You have to enter this short name in the config file (setting `hostname`) in order to make the Kerberos authentication work. You can find out the short name by inspecting your keytab: `sudo klist -k /etc/krb5.keytab`.
 
 Set the `hostname` option to empty string (`''`) by default to use the system's normal host name.
 
 ### Troubleshooting
+
 If the script throws an error like `kinit -k -c /tmp/laps.temp SERVER$ returned non-zero exit code 1`, please check what happens when you execute the following commands manually on the command line.
-```
+
+```bash
 sudo kinit -k -c /tmp/laps.temp COMPUTERNAME$
 sudo klist -c /tmp/laps.temp
 ```
+
 Please replace COMPUTERNAME with your hostname, but do not forget the trailing dollar sign.
 
 ## Support
+
 If you like LAPS4LINUX please consider making a donation using the sponsor button on [GitHub](https://github.com/schorschii/LAPS4LINUX) to support further development.
 
 You can hire me for commercial support or adjustments for this project. Please [contact me](https://georg-sieber.de/?page=impressum) if you are interested.
