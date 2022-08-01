@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from os import path
-from datetime import datetime, timedelta
-from sys import excepthook
-from dns import resolver, rdatatype
-from Crypto.Hash import SHA512
-import ldap3
-from ldap3.utils.conv import escape_filter_chars
-import subprocess
-import secrets
-import socket
 import argparse
 import json
-import os
 import logging
 import logging.handlers
+import os
+import secrets
+import socket
+import subprocess
 import traceback
+from datetime import datetime, timedelta
+from os import path
+from sys import excepthook
+
+import ldap3
+from Crypto.Hash import SHA512
+from dns import rdatatype, resolver
+from ldap3.utils.conv import escape_filter_chars
+
 import helpers as helpers
 from configuration import RunnerConfig
 
