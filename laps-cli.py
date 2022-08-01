@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import base64
 import getpass
 import json
 import logging
@@ -17,7 +16,6 @@ import ldap3
 from dns import rdatatype, resolver
 from ldap3.utils.conv import escape_filter_chars
 
-import constants as const
 import helpers
 from configuration import CfgServer, ClientConfig
 
@@ -74,11 +72,6 @@ class LapsCli():
     def load_settings(self) -> None:
         if(not path.isdir(self.cfgDir)):
             makedirs(self.cfgDir, exist_ok=True)
-            with open(self.cfgPath, 'x') as f:
-                f.write(base64.b64decode(
-                    const.DEFAULT_SETTINGS).decode(self.ENCODING))
-            raise Exception(
-                'Default settings file created. Please fill in the file to continue.')
 
         # protect temporary .remmina file by limiting access to our config folder
         if(self.PLATFORM == 'linux'):
@@ -96,17 +89,9 @@ class LapsCli():
         try:
             with open(cfgPath) as f:
                 cfgJson: dict = json.load(f)
-                self.is_default_setting_file(cfgPath, cfgJson)
                 self.cfg = ClientConfig.from_dict(cfgJson)
         except Exception as e:
             raise Exception('Error loading settings file: ' + str(e))
-
-    def is_default_setting_file(self, cfgPath, cfgJson):
-        b64 = base64.b64encode(
-            str(cfgJson).encode(self.ENCODING)).decode(self.ENCODING)
-        if(b64 == const.DEFAULT_SETTINGS):
-            raise Exception(
-                'Default settings detected at \"' + cfgPath + '\". Exiting.')
 
     def save_settings(self) -> None:
         try:
