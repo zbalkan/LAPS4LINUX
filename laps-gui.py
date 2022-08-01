@@ -20,16 +20,16 @@ from dns import rdatatype, resolver, rrset
 from ldap3.utils.conv import escape_filter_chars
 from PyQt5 import QtCore
 from PyQt5.QtGui import QFont, QFontDatabase, QIcon
-from PyQt5.QtWidgets import (QAction, QApplication, QCalendarWidget, QDialog,
-                             QDialogButtonBox, QGridLayout, QInputDialog, QLabel, QLineEdit,
-                             QMainWindow, QMessageBox, QPushButton, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QAction, QApplication, QCalendarWidget, QDialog, QDialogButtonBox,
+                             QGridLayout, QInputDialog, QLabel, QLineEdit, QMainWindow, QMenu,
+                             QMenuBar, QMessageBox, QPushButton, QVBoxLayout, QWidget)
 
 import helpers
 from configuration import CfgServer, ClientConfig
 
 
 class LapsMainWindow(QMainWindow):
-    PLATFORM = sys.platform.lower()
+    PLATFORM: str = sys.platform.lower()
 
     PRODUCT_NAME: str = 'LAPS4WINDOWS' if PLATFORM == 'win32' else 'LAPS4MAC' if PLATFORM == 'darwin' else 'LAPS4LINUX'
     PRODUCT_VERSION: str = '1.5.3'
@@ -93,44 +93,45 @@ class LapsMainWindow(QMainWindow):
         # Icon Selection
         if(getattr(sys, 'frozen', False)):
             # included via pyinstaller (Windows & macOS)
-            self.PRODUCT_ICON_PATH = sys._MEIPASS
-        self.iconPath = path.join(self.PRODUCT_ICON_PATH, self.PRODUCT_ICON)
+            self.PRODUCT_ICON_PATH = sys._MEIPASS  # type: ignore
+        self.iconPath: str = path.join(
+            self.PRODUCT_ICON_PATH, self.PRODUCT_ICON)
         if(path.exists(self.iconPath)):
-            self.icon = QIcon(self.iconPath)
+            self.icon: QIcon = QIcon(self.iconPath)
             self.setWindowIcon(self.icon)
 
         # Menubar
-        mainMenu = self.menuBar()
+        mainMenu: QMenuBar = self.menuBar()
 
         # File Menu
-        fileMenu = mainMenu.addMenu('&File')
+        fileMenu: QMenu = mainMenu.addMenu('&File')
 
-        searchAction = QAction('&Search', self)
+        searchAction: QAction = QAction('&Search', self)
         searchAction.setShortcut('F2')
         searchAction.triggered.connect(self.OnClickSearch)
         fileMenu.addAction(searchAction)
         if(self.cfg.ldap_attribute_password_expiry.strip() != ''):
-            setExpirationDateAction = QAction('Set &Expiration', self)
+            setExpirationDateAction: QAction = QAction('Set &Expiration', self)
             setExpirationDateAction.setShortcut('F3')
             setExpirationDateAction.triggered.connect(self.OnClickSetExpiry)
             fileMenu.addAction(setExpirationDateAction)
         fileMenu.addSeparator()
-        kerberosAction = QAction('&Kerberos Authentication', self)
+        kerberosAction: QAction = QAction('&Kerberos Authentication', self)
         kerberosAction.setShortcut('Ctrl+K')
         kerberosAction.setCheckable(True)
         kerberosAction.setChecked(True)
         kerberosAction.triggered.connect(self.OnClickKerberos)
         fileMenu.addAction(kerberosAction)
         fileMenu.addSeparator()
-        quitAction = QAction('&Quit', self)
+        quitAction: QAction = QAction('&Quit', self)
         quitAction.setShortcut('Ctrl+Q')
         quitAction.triggered.connect(self.OnQuit)
         fileMenu.addAction(quitAction)
 
         # Help Menu
-        helpMenu = mainMenu.addMenu('&Help')
+        helpMenu: QMenu = mainMenu.addMenu('&Help')
 
-        aboutAction = QAction('&About', self)
+        aboutAction: QAction = QAction('&About', self)
         aboutAction.setShortcut('F1')
         aboutAction.triggered.connect(self.OnOpenAboutDialog)
         helpMenu.addAction(aboutAction)
@@ -139,34 +140,34 @@ class LapsMainWindow(QMainWindow):
         self.setStatusBar(self.statusBar())
 
         # Window Content
-        grid = QGridLayout()
-        gridLine = 0
+        grid: QGridLayout = QGridLayout()
+        gridLine: int = 0
 
-        self.lblSearchComputer = QLabel('Computer Name')
+        self.lblSearchComputer: QLabel = QLabel('Computer Name')
         grid.addWidget(self.lblSearchComputer, gridLine, 0)
         gridLine += 1
-        self.txtSearchComputer = QLineEdit()
+        self.txtSearchComputer: QLineEdit = QLineEdit()
         self.txtSearchComputer.returnPressed.connect(self.OnReturnSearch)
         grid.addWidget(self.txtSearchComputer, gridLine, 0)
-        self.btnSearchComputer = QPushButton('Search')
+        self.btnSearchComputer: QPushButton = QPushButton('Search')
         self.btnSearchComputer.clicked.connect(self.OnClickSearch)
         grid.addWidget(self.btnSearchComputer, gridLine, 1)
         gridLine += 1
 
-        attrs = self.cfg.ldap_attributes.to_dict()
+        attrs: dict[str, str] = self.cfg.ldap_attributes.to_dict()
         for key in attrs:
-            title = key  # unused
-            attribute = attrs[key]
-            lblAdditionalAttribute = QLabel(str(title))
+            title: str = key  # unused
+            attribute: str = attrs[key]
+            lblAdditionalAttribute: QLabel = QLabel(str(title))
             grid.addWidget(lblAdditionalAttribute, gridLine, 0)
             gridLine += 1
-            txtAdditionalAttribute = QLineEdit()
+            txtAdditionalAttribute: QLineEdit = QLineEdit()
             txtAdditionalAttribute.setReadOnly(True)
             if(self.PLATFORM == 'win32'):
-                font = QFont('Consolas', 14)
+                font: QFont = QFont('Consolas', 14)
                 font.setBold(True)
             else:
-                font = QFontDatabase.systemFont(
+                font: QFont = QFontDatabase.systemFont(
                     QFontDatabase.SystemFont.FixedFont)
                 font.setPointSize(18 if self.PLATFORM == 'darwin' else 14)
             txtAdditionalAttribute.setFont(font)
@@ -175,14 +176,15 @@ class LapsMainWindow(QMainWindow):
             self.refLdapAttributesTextBoxes[str(
                 title)] = txtAdditionalAttribute
 
-        self.btnSetExpirationTime = QPushButton('Set New Expiration Date')
+        self.btnSetExpirationTime: QPushButton = QPushButton(
+            'Set New Expiration Date')
         self.btnSetExpirationTime.setEnabled(False)
         self.btnSetExpirationTime.clicked.connect(self.OnClickSetExpiry)
         if(self.cfg.ldap_attribute_password_expiry.strip() != ''):
             grid.addWidget(self.btnSetExpirationTime, gridLine, 0)
             gridLine += 1
 
-        widget = QWidget(self)
+        widget: QWidget = QWidget(self)
         widget.setLayout(grid)
         self.setCentralWidget(widget)
 
@@ -195,10 +197,10 @@ class LapsMainWindow(QMainWindow):
         urlToHandle: str = ''
         for arg in sys.argv:
             if(arg.startswith(self.PROTOCOL_SCHEME)):
-                urlToHandle = arg
+                urlToHandle: str = arg
         if(urlToHandle != ''):
             print('Handle ' + urlToHandle)
-            protocolPayload = unquote(urlToHandle).replace(
+            protocolPayload: str = unquote(urlToHandle).replace(
                 self.PROTOCOL_SCHEME, '').strip(' /')
             self.txtSearchComputer.setText(protocolPayload)
             self.OnClickSearch()
@@ -210,7 +212,7 @@ class LapsMainWindow(QMainWindow):
         self.useKerberos = not self.useKerberos
 
     def OnOpenAboutDialog(self) -> None:
-        dlg = LapsAboutWindow(self)
+        dlg: LapsAboutWindow = LapsAboutWindow(self)
         dlg.exec_()
 
     def OnReturnSearch(self) -> None:
@@ -218,10 +220,10 @@ class LapsMainWindow(QMainWindow):
 
     def OnClickSearch(self) -> None:
         # check and escape input
-        computerName = self.txtSearchComputer.text()
+        computerName: str = self.txtSearchComputer.text()
         if computerName.strip() == "":
             return
-        computerName = escape_filter_chars(computerName)
+        computerName: str = escape_filter_chars(computerName)
 
         # ask for credentials
         self.btnSearchComputer.setEnabled(False)
@@ -247,18 +249,18 @@ class LapsMainWindow(QMainWindow):
             # no result found
             self.statusBar().showMessage(
                 'No Result For: ' + computerName + ' (' + str(self.connection.server) + ')')
-            attrs = self.cfg.ldap_attributes.to_dict()
+            attrs: dict[str, str] = self.cfg.ldap_attributes.to_dict()
             for key in attrs:
-                title = key
-                attribute = attrs[key]  # unused
+                title: str = key
+                attribute: str = attrs[key]  # unused
                 self.refLdapAttributesTextBoxes[str(title)].setText('')
         except Exception as e:
             # display error
             self.statusBar().showMessage(str(e))
             print(str(e))
             # reset connection
-            self.server = None
-            self.connection = None
+            self.server = None  # type: ignore
+            self.connection = None  # type: ignore
 
         self.tmpDn = ''
         self.btnSetExpirationTime.setEnabled(False)
@@ -269,8 +271,8 @@ class LapsMainWindow(QMainWindow):
         if self.tmpDn.strip() == '':
             return
 
-        dlg = LapsCalendarWindow(self)
-        dlg.refMainWindows = self
+        dlg: LapsCalendarWindow = LapsCalendarWindow(self)
+        dlg.refMainWindows = self  # type: ignore
         dlg.exec_()
 
     def load_settings(self) -> None:
@@ -284,14 +286,14 @@ class LapsMainWindow(QMainWindow):
             rename(self.cfgPathOld, self.cfgPath)
 
         if(path.isfile(self.cfgPath)):
-            cfgPath = self.cfgPath
+            cfgPath: str = self.cfgPath
         elif(path.isfile(self.cfgPresetPath)):
-            cfgPath = self.cfgPresetPath
+            cfgPath: str = self.cfgPresetPath
         else:
             raise Exception("Could not find the settings file.")
 
         try:
-            with open(self.cfgPath) as f:
+            with open(cfgPath, "r") as f:
                 cfgJson: dict = json.load(f)
                 self.cfg = ClientConfig.from_dict(cfgJson)
 
@@ -319,11 +321,11 @@ class LapsMainWindow(QMainWindow):
             return
 
         # compile query attributes
-        attributes = ['SAMAccountname', 'distinguishedName']
-        attrs = self.cfg.ldap_attributes.to_dict()
+        attributes: list[str] = ['SAMAccountname', 'distinguishedName']
+        attrs: dict[str, str] = self.cfg.ldap_attributes.to_dict()
         for key in attrs:
-            title = key
-            attribute = attrs[key]
+            title: str = key
+            attribute: str = attrs[key]
             attributes.append(str(attribute))
         # start LDAP search
         self.connection.search(
@@ -335,11 +337,12 @@ class LapsMainWindow(QMainWindow):
         for entry in self.connection.entries:
             self.btnSetExpirationTime.setEnabled(True)
             self.btnSearchComputer.setEnabled(True)
-            attrs = self.cfg.ldap_attributes.to_dict()
+            attrs: dict[str, str] = self.cfg.ldap_attributes.to_dict()
             for key in attrs:
-                title = key
-                attribute = attrs[key]
-                textBox = self.refLdapAttributesTextBoxes[str(title)]
+                title: str = key
+                attribute: str = attrs[key]
+                textBox: QLineEdit = self.refLdapAttributesTextBoxes[str(
+                    title)]
                 if(str(attribute) == self.cfg.ldap_attribute_password_expiry):
                     try:
                         textBox.setText(str(helpers.filetime_to_dt(
@@ -357,8 +360,8 @@ class LapsMainWindow(QMainWindow):
             item, ok = QInputDialog.getText(
                 self, '♕ Domain', 'Please enter your Domain name (e.g. example.com).')
             if ok and item:
-                self.cfgDomain = item
-                self.server = None
+                self.cfgDomain: str = item
+                self.server = None  # type: ignore
             else:
                 return False
         if len(self.cfg.server) == 0:
@@ -367,7 +370,7 @@ class LapsMainWindow(QMainWindow):
                 res: resolver.Answer = resolver.query(
                     qname=f"_ldap._tcp.{self.cfgDomain}", rdtype=rdatatype.SRV, lifetime=10)
                 for srv in res.rrset:  # type: ignore
-                    serverEntry = CfgServer(
+                    serverEntry: CfgServer = CfgServer(
                         str(srv.target), srv.port, (srv.port == 636))
                     print('DNS auto discovery found server: ' +
                           json.dumps(serverEntry))
@@ -380,7 +383,7 @@ class LapsMainWindow(QMainWindow):
                     self, '💻 Server Address', 'Please enter your LDAP server IP address or DNS name.')
                 if ok and item:
                     self.cfg.server.append(CfgServer(item, 389, False))
-                    self.server = None
+                    self.server = None  # type: ignore
         self.save_settings()
 
         # establish server connection
@@ -389,10 +392,10 @@ class LapsMainWindow(QMainWindow):
                 serverArray: list[ldap3.Server] = []
                 for server in self.cfg.server:
                     if(server.gc_port):
-                        port = server.gc_port
+                        port: int = server.gc_port
                         self.gcModeOn = True
                     else:
-                        port = server.port
+                        port: int = server.port
 
                     serverArray.append(ldap3.Server(
                         server.address, port=port, use_ssl=server.ssl, get_info='ALL'))
@@ -419,23 +422,23 @@ class LapsMainWindow(QMainWindow):
             print('Unable to connect via Kerberos: ' + str(e))
 
         # ask for username and password for NTLM bind
-        sslHint = ''
+        sslHint: str = ''
         if len(self.cfg.server) > 0 and self.cfg.server[0].ssl == False:
-            sslHint = '\n\nPlease consider enabling SSL in the config file (~/.config/laps-client/settings.json).'
+            sslHint: str = '\n\nPlease consider enabling SSL in the config file (~/.config/laps-client/settings.json).'
         if self.cfgUsername == "":
             item, ok = QInputDialog.getText(self, '👤 Username', 'Please enter the username which should be used to connect to:\n' + str(
-                self.cfg.server), QLineEdit.Normal, getpass.getuser())
+                self.cfg.server), QLineEdit.EchoMode.Normal, getpass.getuser())
             if ok and item:
-                self.cfgUsername = item
-                self.connection = None
+                self.cfgUsername: str = item
+                self.connection = None  # type: ignore
             else:
                 return False
         if self.cfgPassword == "":
             item, ok = QInputDialog.getText(self, '🔑 Password for »' + self.cfgUsername + '«',
-                                            'Please enter the password which should be used to connect to:\n' + str(self.cfg.server) + sslHint, QLineEdit.Password)
+                                            'Please enter the password which should be used to connect to:\n' + str(self.cfg.server) + sslHint, QLineEdit.EchoMode.Password)
             if ok and item:
-                self.cfgPassword = item
-                self.connection = None
+                self.cfgPassword: str = item
+                self.connection = None  # type: ignore
             else:
                 return False
         self.save_settings()
@@ -466,16 +469,17 @@ class LapsMainWindow(QMainWindow):
         # global catalog was used for search (this buddy is read only and not all attributes are replicated into it)
         # -> that's why we need to establish a new connection to the "normal" LDAP port
         # LDAP referrals to the correct (sub)domain controller is handled automatically by ldap3
-        serverArray = []
+        serverArray: list[ldap3.Server] = []
         for server in self.cfg.server:
             serverArray.append(ldap3.Server(
                 server.address, port=server.port, use_ssl=server.ssl, get_info='ALL'))
-        server = ldap3.ServerPool(
+
+        serverpool: ldap3.ServerPool = ldap3.ServerPool(
             serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
         # try to bind to server via Kerberos
         try:
             if(self.useKerberos):
-                self.connection = ldap3.Connection(server,
+                self.connection = ldap3.Connection(serverpool,
                                                    authentication=ldap3.SASL,
                                                    sasl_mechanism=ldap3.KERBEROS,
                                                    auto_referrals=True,
@@ -486,7 +490,7 @@ class LapsMainWindow(QMainWindow):
             print('Unable to connect via Kerberos: ' + str(e))
         # try to bind to server with username and password
         try:
-            self.connection = ldap3.Connection(server,
+            self.connection = ldap3.Connection(serverpool,
                                                user=self.cfgUsername + '@' + self.cfgDomain,
                                                password=self.cfgPassword,
                                                authentication=ldap3.SIMPLE,
@@ -501,42 +505,30 @@ class LapsMainWindow(QMainWindow):
     def create_ldap_base(self, domain: str) -> str:
         # convert FQDN "example.com" to LDAP path notation "DC=example,DC=com"
         search_base: str = ""
-        base = domain.split(".")
+        base: list[str] = domain.split(".")
         for b in base:
             search_base += "DC=" + b + ","
         return search_base[:-1]
 
     def show_error_dialog(self, title: str, text: str, additionalText: str = '') -> None:
         print('Error: ' + text)
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Critical)
+        msg: QMessageBox = QMessageBox()
+        msg.setIcon(QMessageBox.Icon.Critical)
         msg.setWindowTitle(title)
         msg.setText(text)
         msg.setDetailedText(additionalText)
-        msg.setStandardButtons(QMessageBox.Ok)
-        retval = msg.exec_()
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        retval: int = msg.exec_()
 
     def show_info_dialog(self, title: str, text: str, additionalText: str = '') -> None:
         print('Info: ' + text)
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)
+        msg: QMessageBox = QMessageBox()
+        msg.setIcon(QMessageBox.Icon.Information)
         msg.setWindowTitle(title)
         msg.setText(text)
         msg.setDetailedText(additionalText)
-        msg.setStandardButtons(QMessageBox.Ok)
-        retval = msg.exec_()
-
-    def __checkRemoteConnectors(self) -> None:
-        if(which('remmina') is not None):
-            self.useRemmina = True
-            self.renderConnectMenu = True
-        else:
-            if(which('xfreerdp')):
-                self.useFreeRdp = True
-                self.renderConnectMenu = True
-            if(which('ssh')):
-                self.useSsh = True
-                self.renderConnectMenu = True
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        retval: int = msg.exec_()
 
 
 class LapsAboutWindow(QDialog):
@@ -545,20 +537,21 @@ class LapsAboutWindow(QDialog):
         self.InitUI()
 
     def InitUI(self) -> None:
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        self.buttonBox: QDialogButtonBox = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok)
         self.buttonBox.accepted.connect(
             self.accept)  # This line throws an error
 
-        layout = QVBoxLayout(self)
+        layout: QVBoxLayout = QVBoxLayout(self)
 
-        labelAppName = QLabel(self)
+        labelAppName: QLabel = QLabel(self)
         labelAppName.setText(self.parentWidget().PRODUCT_NAME +
                              " v" + self.parentWidget().PRODUCT_VERSION)
         labelAppName.setStyleSheet("font-weight:bold")
-        labelAppName.setAlignment(QtCore.Qt.AlignCenter)
+        labelAppName.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(labelAppName)
 
-        labelCopyright = QLabel(self)
+        labelCopyright: QLabel = QLabel(self)
         labelCopyright.setText(
             "<br>"
             "© 2021-2022 <a href='https://georg-sieber.de'>Georg Sieber</a>"
@@ -574,10 +567,10 @@ class LapsAboutWindow(QDialog):
             "<br>"
         )
         labelCopyright.setOpenExternalLinks(True)
-        labelCopyright.setAlignment(QtCore.Qt.AlignCenter)
+        labelCopyright.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(labelCopyright)
 
-        labelDescription = QLabel(self)
+        labelDescription: QLabel = QLabel(self)
         labelDescription.setText(
             """LAPS4LINUX client allows you to query local administrator passwords for LAPS runner managed workstations in your domain from your LDAP (Active Directory) server.\n\n"""
             """The LAPS runner periodically sets a new administrator password and saves it into the LDAP directory.\n\n"""
@@ -603,17 +596,17 @@ class LapsCalendarWindow(QDialog):
         self.InitUI()
 
     def InitUI(self) -> None:
-        buttons = QDialogButtonBox.StandardButton(
+        buttons: int = QDialogButtonBox.StandardButton(
         ).Ok | QDialogButtonBox.StandardButton.Cancel
-        std = QDialogButtonBox.StandardButtons()
-        self.buttonBox = QDialogButtonBox()
+        std: QDialogButtonBox.StandardButtons = QDialogButtonBox.StandardButtons()
+        self.buttonBox: QDialogButtonBox = QDialogButtonBox()
         self.buttonBox.setStandardButtons(std | typing.cast(
             QDialogButtonBox.StandardButton, buttons))
         self.buttonBox.accepted.connect(self.OnClickAccept)
         self.buttonBox.rejected.connect(self.OnClickReject)
 
-        layout = QVBoxLayout(self)
-        self.cwNewExpirationTime = QCalendarWidget()
+        layout: QVBoxLayout = QVBoxLayout(self)
+        self.cwNewExpirationTime: QCalendarWidget = QCalendarWidget()
         layout.addWidget(self.cwNewExpirationTime)
 
         layout.addWidget(self.buttonBox)
@@ -625,7 +618,7 @@ class LapsCalendarWindow(QDialog):
         return typing.cast(LapsMainWindow, super().parentWidget())
 
     def OnClickAccept(self) -> None:
-        parentWidget = self.parentWidget()
+        parentWidget: LapsMainWindow = self.parentWidget()
 
         # check if dn of target computer object is known
         if parentWidget.tmpDn.strip() == '':
@@ -633,9 +626,10 @@ class LapsCalendarWindow(QDialog):
 
         try:
             # calc new time
-            newExpirationDate = datetime.combine(
+            newExpirationDate: datetime = datetime.combine(
                 self.cwNewExpirationTime.selectedDate().toPyDate(), datetime.min.time())
-            newExpirationDateTime = helpers.dt_to_filetime(newExpirationDate)
+            newExpirationDateTime: int = helpers.dt_to_filetime(
+                newExpirationDate)
             print('new expiration time: ' + str(newExpirationDateTime))
 
             # start LDAP modify
@@ -660,16 +654,16 @@ class LapsCalendarWindow(QDialog):
             parentWidget.show_error_dialog(
                 'Error setting new expiration date', str(e))
             # reset connection
-            parentWidget.server = None
-            parentWidget.connection = None
+            parentWidget.server = None  # type: ignore
+            parentWidget.connection = None  # type: ignore
 
     def OnClickReject(self) -> None:
         self.close()
 
 
 def main() -> NoReturn:
-    app = QApplication(sys.argv)
-    window = LapsMainWindow()
+    app: QApplication = QApplication(sys.argv)
+    window: LapsMainWindow = LapsMainWindow()
     window.show()
     sys.exit(app.exec_())
 

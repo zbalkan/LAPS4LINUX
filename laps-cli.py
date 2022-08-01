@@ -21,7 +21,7 @@ from configuration import CfgServer, ClientConfig
 
 
 class LapsCli():
-    PLATFORM = sys.platform.lower()
+    PLATFORM: str = sys.platform.lower()
 
     PRODUCT_NAME: str = 'LAPS4LINUX CLI'
     PRODUCT_VERSION: str = '1.5.3'
@@ -80,9 +80,9 @@ class LapsCli():
             rename(self.cfgPathOld, self.cfgPath)
 
         if(path.isfile(self.cfgPath)):
-            cfgPath = self.cfgPath
+            cfgPath: str = self.cfgPath
         elif(path.isfile(self.cfgPresetPath)):
-            cfgPath = self.cfgPresetPath
+            cfgPath: str = self.cfgPresetPath
         else:
             raise Exception("Could not find the settings file.")
 
@@ -112,7 +112,9 @@ class LapsCli():
         if computerName.strip() == '':
             return
         if not computerName == '*':
-            computerName = escape_filter_chars(computerName)
+            safeComputerName: str = escape_filter_chars(computerName)
+        else:
+            safeComputerName = computerName
 
         # ask for credentials and print connection details
         print('')
@@ -123,30 +125,30 @@ class LapsCli():
 
         try:
             # compile query attributes
-            attributes = ['SAMAccountname', 'distinguishedName']
-            attrs = self.cfg.ldap_attributes.to_dict()
+            attributes: list[str] = ['SAMAccountname', 'distinguishedName']
+            attrs: dict[str,str] = self.cfg.ldap_attributes.to_dict()
             for key in attrs:
-                title = key  # unused
-                attribute = attrs[key]
+                title: str = key  # unused
+                attribute: str = attrs[key]
                 attributes.append(attribute)
 
             # start LDAP search
-            count = 0
+            count: int = 0
             self.connection.search(
                 search_base=self.create_ldap_base(self.cfg.domain),
                 search_filter='(&(objectCategory=computer)(name=' +
-                computerName + '))',
+                safeComputerName + '))',
                 attributes=attributes
             )
             for entry in self.connection.entries:
                 count += 1
                 # display result list
-                if computerName == '*':
+                if safeComputerName == '*':
                     displayValues: list[str] = []
-                    attrs = self.cfg.ldap_attributes.to_dict()
+                    attrs: dict[str,str] = self.cfg.ldap_attributes.to_dict()
                     for key in attrs:
-                        title = key  # unused
-                        attribute = attrs[key]
+                        title: str = key  # unused
+                        attribute: str = attrs[key]
                         displayValues.append(
                             str(entry[attribute]).ljust(25))
                     print(str(entry['SAMAccountname']) +
@@ -160,14 +162,14 @@ class LapsCli():
 
             # no result found
             if count == 0:
-                self.print_result('No Result For', computerName)
+                self.print_result('No Result For', safeComputerName)
         except Exception as e:
             # display error
             self.print_result('Error', str(e))
             print(str(e))
             # reset connection
-            self.server = None
-            self.connection = None
+            self.server = None  # type: ignore
+            self.connection = None  # type: ignore
 
         self.tmpDn = ''
 
@@ -178,9 +180,10 @@ class LapsCli():
 
         try:
             # calc new time
-            newExpirationDate = datetime.strptime(
+            newExpirationDate: datetime = datetime.strptime(
                 newExpirationDateTimeString, '%Y-%m-%d %H:%M:%S')
-            newExpirationDateTime = helpers.dt_to_filetime(newExpirationDate)
+            newExpirationDateTime: int = helpers.dt_to_filetime(
+                newExpirationDate)
             self.print_result('New Expiration', str(
                 newExpirationDateTime) + ' (' + str(newExpirationDate) + ')')
 
@@ -197,19 +200,19 @@ class LapsCli():
             # display error
             self.print_result('Error', str(e))
             # reset connection
-            self.server = None
-            self.connection = None
+            self.server = None  # type: ignore
+            self.connection = None  # type: ignore
 
     def query_attributes(self) -> None:
         if(not self.reconnect_for_attribute_query()):
             return
 
         # compile query attributes
-        attributes = ['SAMAccountname', 'distinguishedName']
-        attrs = self.cfg.ldap_attributes.to_dict()
+        attributes: list[str] = ['SAMAccountname', 'distinguishedName']
+        attrs: dict[str, str] = self.cfg.ldap_attributes.to_dict()
         for key in attrs:
-            title = key
-            attribute = attrs[key]
+            title: str = key
+            attribute: str = attrs[key]
             attributes.append(attribute)
 
         # start LDAP search
@@ -221,8 +224,8 @@ class LapsCli():
         for entry in self.connection.entries:
             # display single result
             for key in attrs:
-                title = key
-                attribute = attrs[key]
+                title: str = key
+                attribute: str = attrs[key]
                 if(attribute == self.cfg.ldap_attribute_password_expiry):
                     try:
                         self.print_result(title, str(entry[attribute]) + ' (' + str(
@@ -241,10 +244,10 @@ class LapsCli():
     def check_credentials_and_connect(self) -> bool:
         # ask for server address and domain name if not already set via config file
         if self.cfg.domain == "":
-            item = input('♕ Domain Name (e.g. example.com): ')
+            item: str = input('♕ Domain Name (e.g. example.com): ')
             if item and item.strip() != "":
                 self.cfg.domain = item
-                self.server = None
+                self.server = None  # type: ignore
             else:
                 return False
         if len(self.cfg.server) == 0:
@@ -252,20 +255,22 @@ class LapsCli():
             try:
                 res = resolver.query(
                     qname=f"_ldap._tcp.{self.cfg.domain}", rdtype=rdatatype.SRV, lifetime=10)
+
                 for srv in res.rrset:
-                    serverEntry = CfgServer(
+                    serverEntry: CfgServer = CfgServer(
                         str(srv.target), srv.port, (srv.port == 636))
                     print('DNS auto discovery found server: ' +
                           json.dumps(serverEntry))
                     self.cfg.server.append(serverEntry)
             except Exception as e:
                 print('DNS auto discovery failed: ' + str(e))
+
             # ask user to enter server names if auto discovery was not successful
             if len(self.cfg.server) == 0:
-                item = input('💻 LDAP Server Address: ')
+                item: str = input('💻 LDAP Server Address: ')
                 if item and item.strip() != "":
                     self.cfg.server.append(CfgServer(item, 389, False))
-                    self.server = None
+                    self.server = None  # type: ignore
         self.save_settings()
 
         # establish server connection
@@ -274,10 +279,10 @@ class LapsCli():
                 serverArray: list[ldap3.Server] = []
                 for server in self.cfg.server:
                     if(server.gc_port):
-                        port = server.gc_port
+                        port: int = server.gc_port
                         self.gcModeOn = True
                     else:
-                        port = server.port
+                        port: int = server.port
 
                     serverArray.append(ldap3.Server(
                         server.address, port=port, use_ssl=server.ssl, get_info='ALL'))
@@ -304,19 +309,19 @@ class LapsCli():
 
         # ask for username and password for NTLM bind
         if self.cfg.username == "":
-            item = input(
+            item: str = input(
                 '👤 Username [' + getpass.getuser() + ']: ') or getpass.getuser()
             if item and item.strip() != "":
                 self.cfg.username = item
-                self.connection = None
+                self.connection = None  # type: ignore
             else:
                 return False
         if self.cfg.ldap_attribute_password == "":
-            item = getpass.getpass(
+            item: str = getpass.getpass(
                 '🔑 Password for »' + self.cfg.username + '«: ')
             if item and item.strip() != "":
                 self.cfg.ldap_attribute_password = item
-                self.connection = None
+                self.connection = None  # type: ignore
             else:
                 return False
         self.save_settings()
@@ -352,12 +357,13 @@ class LapsCli():
         for server in self.cfg.server:
             serverArray.append(ldap3.Server(
                 server.address, port=server.port, use_ssl=server.ssl, get_info='ALL'))
-        server = ldap3.ServerPool(
+
+        serverpool: ldap3.ServerPool = ldap3.ServerPool(
             serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
         # try to bind to server via Kerberos
         try:
             if(self.useKerberos):
-                self.connection = ldap3.Connection(server,
+                self.connection = ldap3.Connection(serverpool,
                                                    authentication=ldap3.SASL,
                                                    sasl_mechanism=ldap3.KERBEROS,
                                                    auto_referrals=True,
@@ -368,7 +374,7 @@ class LapsCli():
             print('Unable to connect via Kerberos: ' + str(e))
         # try to bind to server with username and password
         try:
-            self.connection = ldap3.Connection(server,
+            self.connection = ldap3.Connection(serverpool,
                                                user=self.cfg.username + '@' + self.cfg.domain,
                                                password=self.cfg.ldap_attribute_password,
                                                authentication=ldap3.SIMPLE,
@@ -383,14 +389,14 @@ class LapsCli():
     def create_ldap_base(self, domain: str) -> str:
         # convert FQDN "example.com" to LDAP path notation "DC=example,DC=com"
         search_base: str = ""
-        base = domain.split(".")
+        base: list[str] = domain.split(".")
         for b in base:
             search_base += "DC=" + b + ","
         return search_base[:-1]
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
         epilog='© 2021-2022 Georg Sieber - https://georg-sieber.de')
     parser.add_argument('search', default=None, nargs='*', metavar='COMPUTERNAME',
                         help='Search for this computer(s) and display the admin password. Use "*" to display all computer passwords found in LDAP directory. If you omit this parameter, the interactive shell will be started, which allows you to do multiple queries in one session.')
@@ -400,16 +406,16 @@ def main() -> None:
                         help='Do not use Kerberos authentication if available, ask for LDAP simple bind credentials.')
     parser.add_argument('--version', action='store_true',
                         help='Print version and exit.')
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
-    cli = LapsCli(not args.no_kerberos)
+    cli: LapsCli = LapsCli(not args.no_kerberos)
 
     if(args.version):
         return
 
     # do LDAP search by command line arguments
     if(args.search):
-        validSearches = 0
+        validSearches: int = 0
         for term in args.search:
             if(term.strip() == '*'):
                 cli.search_computer('*')
@@ -431,7 +437,7 @@ def main() -> None:
     print('Parameter --help provides more information.')
     while 1:
         # get keyboard input
-        cmd = input('>> ')
+        cmd: str = input('>> ')
         if(cmd == 'exit' or cmd == 'quit'):
             return
         else:

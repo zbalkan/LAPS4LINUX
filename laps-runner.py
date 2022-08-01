@@ -69,9 +69,9 @@ class LapsRunner():
         # query new kerberos ticket
         cmd: list[str] = ['kinit', '-k', '-c', self.cfg.cred_cache_file,
                           self.get_hostname() + '$']
-        res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
-        if res.returncode != 0:
+        res: subprocess.CompletedProcess[str] = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
+                                                               stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
+        if (res.returncode != 0):
             raise Exception(
                 ' '.join(cmd) + ' returned non-zero exit code ' + str(res.returncode))
 
@@ -147,9 +147,9 @@ class LapsRunner():
 
     def update_password(self) -> None:
         # generate new values
-        newPassword = self.generate_password()
+        newPassword: str = self.generate_password()
         newPasswordHashed = SHA512.new(bytes(newPassword, self.ENCODING))
-        newExpirationDate = datetime.now(
+        newExpirationDate: datetime = datetime.now(
         ) + timedelta(days=self.cfg.password_days_valid)
 
         # update in directory
@@ -158,8 +158,8 @@ class LapsRunner():
         # update password in local database
         cmd: list[str] = ['usermod', '-p',
                           newPasswordHashed.digest().decode(self.ENCODING), self.cfg.password_change_user]
-        res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
+        res: subprocess.CompletedProcess[str] = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
+                                                               stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
         if res.returncode == 0:
             print('Password successfully changed in local database.')
             self.logger.debug(self.PRODUCT_NAME + ': Changed password of user ' +
@@ -174,7 +174,7 @@ class LapsRunner():
             return
 
         # calc new time
-        newExpirationDateTime = helpers.dt_to_filetime(newExpirationDate)
+        newExpirationDateTime: int = helpers.dt_to_filetime(newExpirationDate)
 
         # start query
         self.connection.modify(self.tmpDn, {
@@ -192,7 +192,7 @@ class LapsRunner():
 
     def create_ldap_base(self, domain: str) -> str:
         search_base: str = ""
-        base = domain.split(".")
+        base: list[str] = domain.split(".")
         for b in base:
             search_base += "DC=" + b + ","
         return search_base[:-1]
@@ -209,15 +209,15 @@ class LapsRunner():
 
 
 def main() -> None:
-    runner = LapsRunner()
+    runner: LapsRunner = LapsRunner()
 
     # parse arguments
-    parser = argparse.ArgumentParser()
+    parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('-f', '--force', action='store_true',
                         help='Force updating password, even if it is not expired')
     parser.add_argument('-c', '--config', default=runner.cfgPath,
                         help='Path to config file [' + str(runner.cfgPath) + ']')
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
     if args.config:
         runner.cfgPath = args.config
 
