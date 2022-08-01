@@ -131,6 +131,9 @@ dmypy.json
 # PyCharm
 .idea/
 
+# Visual studio
+.vs/
+
 # arya specific excludes
 pyvenv.cfg
 /Scripts
