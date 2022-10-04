@@ -19,10 +19,14 @@ echo "Version: ${VERSION}"
 mkdir -p laps4linux-"${VERSION}"/usr/sbin
 mkdir -p laps4linux-"${VERSION}"/etc/cron.hourly
 cp "${SCRIPT_DIR}"/../laps-runner.py laps4linux-"${VERSION}"/usr/sbin/laps-runner
-cp "${SCRIPT_DIR}"/../laps-runner.py laps4linux-"${VERSION}"/usr/sbin/constants
-cp "${SCRIPT_DIR}"/../laps-runner.py laps4linux-"${VERSION}"/usr/sbin/helpers
-cp "${SCRIPT_DIR}"/../laps-runner.py laps4linux-"${VERSION}"/usr/sbin/configuration
 chmod +x laps4linux-"${VERSION}"/usr/sbin/laps-runner
+cp "${SCRIPT_DIR}"/../constants.py laps4linux-"${VERSION}"/usr/sbin/constants
+chmod +x laps4linux-"${VERSION}"/usr/sbin/constants
+cp "${SCRIPT_DIR}"/../helpers.py laps4linux-"${VERSION}"/usr/sbin/helpers
+chmod +x laps4linux-"${VERSION}"/usr/sbin/helpers
+cp "${SCRIPT_DIR}"/../configuration.py laps4linux-"${VERSION}"/usr/sbin/configuration
+chmod +x laps4linux-"${VERSION}"/usr/sbin/configuration
+
 # Test if we have our own laps-runner config
 if [ -f "${SCRIPT_DIR}"/../laps-runner.json ]; then
     cp "${SCRIPT_DIR}"/../laps-runner.json laps4linux-"${VERSION}"/etc
