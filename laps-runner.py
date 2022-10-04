@@ -15,7 +15,7 @@ from os import path
 from sys import excepthook
 
 import ldap3
-from Crypto.Hash import SHA512
+from cryptography.hazmat.primitives import hashes
 from dns import rdatatype, resolver
 from ldap3.utils.conv import escape_filter_chars
 
@@ -60,7 +60,7 @@ class LapsRunner():
         excepthook = self.logger.error
 
     def get_hostname(self) -> str:
-        if(self.cfg.hostname.strip() == ''):
+        if (self.cfg.hostname.strip() == ''):
             return socket.gethostname().upper()
         else:
             return self.cfg.hostname.strip().upper()
@@ -82,7 +82,7 @@ class LapsRunner():
 
         # connect to server with kerberos ticket
         serverArray: list[ldap3.Server] = []
-        if(len(self.cfg.server) == 0):
+        if (len(self.cfg.server) == 0):
             # query domain controllers by dns lookup
             res = resolver.query(
                 qname=f"_ldap._tcp.{self.cfg.domain}", rdtype=rdatatype.SRV, lifetime=10)
@@ -148,7 +148,8 @@ class LapsRunner():
     def update_password(self) -> None:
         # generate new values
         newPassword: str = self.generate_password()
-        newPasswordHashed = SHA512.new(bytes(newPassword, self.ENCODING))
+        newPasswordHashed: hashes.Hash = hashes.Hash(hashes.SHA512())
+        newPasswordHashed.update(bytes(newPassword, self.ENCODING))
         newExpirationDate: datetime = datetime.now(
         ) + timedelta(days=self.cfg.password_days_valid)
 
@@ -157,7 +158,7 @@ class LapsRunner():
 
         # update password in local database
         cmd: list[str] = ['usermod', '-p',
-                          newPasswordHashed.digest().decode(self.ENCODING), self.cfg.password_change_user]
+                          newPasswordHashed.finalize().decode(self.ENCODING), self.cfg.password_change_user]
         res: subprocess.CompletedProcess[str] = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE,
                                                                stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
         if res.returncode == 0:
@@ -198,7 +199,7 @@ class LapsRunner():
         return search_base[:-1]
 
     def load_settings(self) -> None:
-        if(not path.isfile(self.cfgPath)):
+        if (not path.isfile(self.cfgPath)):
             raise Exception('Config file not found: ' + self.cfgPath)
         with open(self.cfgPath) as f:
             jsonstring = json.load(f)
