@@ -9,6 +9,7 @@ import os
 import secrets
 import socket
 import subprocess
+import sys
 import traceback
 from datetime import datetime, timedelta
 from os import path
@@ -248,5 +249,21 @@ def main() -> None:
     return
 
 
-if __name__ == '__main__':
-    main()
+# We assume the result is successful when user interrupted
+# the scan as it is an intentional act.
+# Otherwise, exit with an error code of 1.
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Cancelled by user.')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
+    except Exception as ex:
+        print(str(ex))
+        try:
+            sys.exit(1)
+        except SystemExit:
+            os._exit(1)

@@ -60,7 +60,7 @@ class LapsCli():
     def init_logger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
-        if(self.PLATFORM == 'win32'):
+        if (self.PLATFORM == 'win32'):
             self.logger.addHandler(
                 logging.handlers.TimedRotatingFileHandler(
                     filename='laps-gui.log', when='m', interval=1, backupCount=5))
@@ -70,18 +70,18 @@ class LapsCli():
         excepthook = self.logger.error
 
     def load_settings(self) -> None:
-        if(not path.isdir(self.cfgDir)):
+        if (not path.isdir(self.cfgDir)):
             makedirs(self.cfgDir, exist_ok=True)
 
         # protect temporary .remmina file by limiting access to our config folder
-        if(self.PLATFORM == 'linux'):
+        if (self.PLATFORM == 'linux'):
             os.chmod(self.cfgDir, 0o700)
-        if(path.exists(self.cfgPathOld)):
+        if (path.exists(self.cfgPathOld)):
             rename(self.cfgPathOld, self.cfgPath)
 
-        if(path.isfile(self.cfgPath)):
+        if (path.isfile(self.cfgPath)):
             cfgPath: str = self.cfgPath
-        elif(path.isfile(self.cfgPresetPath)):
+        elif (path.isfile(self.cfgPresetPath)):
             cfgPath: str = self.cfgPresetPath
         else:
             raise Exception("Could not find the settings file.")
@@ -126,7 +126,7 @@ class LapsCli():
         try:
             # compile query attributes
             attributes: list[str] = ['SAMAccountname', 'distinguishedName']
-            attrs: dict[str,str] = self.cfg.ldap_attributes.to_dict()
+            attrs: dict[str, str] = self.cfg.ldap_attributes.to_dict()
             for key in attrs:
                 title: str = key  # unused
                 attribute: str = attrs[key]
@@ -145,7 +145,7 @@ class LapsCli():
                 # display result list
                 if safeComputerName == '*':
                     displayValues: list[str] = []
-                    attrs: dict[str,str] = self.cfg.ldap_attributes.to_dict()
+                    attrs: dict[str, str] = self.cfg.ldap_attributes.to_dict()
                     for key in attrs:
                         title: str = key  # unused
                         attribute: str = attrs[key]
@@ -204,7 +204,7 @@ class LapsCli():
             self.connection = None  # type: ignore
 
     def query_attributes(self) -> None:
-        if(not self.reconnect_for_attribute_query()):
+        if (not self.reconnect_for_attribute_query()):
             return
 
         # compile query attributes
@@ -226,7 +226,7 @@ class LapsCli():
             for key in attrs:
                 title: str = key
                 attribute: str = attrs[key]
-                if(attribute == self.cfg.ldap_attribute_password_expiry):
+                if (attribute == self.cfg.ldap_attribute_password_expiry):
                     try:
                         self.print_result(title, str(entry[attribute]) + ' (' + str(
                             helpers.filetime_to_dt(int(str(entry[attribute])))) + ')')
@@ -278,7 +278,7 @@ class LapsCli():
             try:
                 serverArray: list[ldap3.Server] = []
                 for server in self.cfg.server:
-                    if(server.gc_port):
+                    if (server.gc_port):
                         port: int = server.gc_port
                         self.gcModeOn = True
                     else:
@@ -294,7 +294,7 @@ class LapsCli():
 
         # try to bind to server via Kerberos
         try:
-            if(self.useKerberos):
+            if (self.useKerberos):
                 self.connection = ldap3.Connection(
                     self.server,
                     authentication=ldap3.SASL,
@@ -348,7 +348,7 @@ class LapsCli():
 
     def reconnect_for_attribute_query(self) -> bool:
         # global catalog was not used for search - we can use the same connection for attribute query
-        if(not self.gcModeOn):
+        if (not self.gcModeOn):
             return True
         # global catalog was used for search (this buddy is read only and not all attributes are replicated into it)
         # -> that's why we need to establish a new connection to the "normal" LDAP port
@@ -362,7 +362,7 @@ class LapsCli():
             serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
         # try to bind to server via Kerberos
         try:
-            if(self.useKerberos):
+            if (self.useKerberos):
                 self.connection = ldap3.Connection(serverpool,
                                                    authentication=ldap3.SASL,
                                                    sasl_mechanism=ldap3.KERBEROS,
@@ -410,25 +410,25 @@ def main() -> None:
 
     cli: LapsCli = LapsCli(not args.no_kerberos)
 
-    if(args.version):
+    if (args.version):
         return
 
     # do LDAP search by command line arguments
-    if(args.search):
+    if (args.search):
         validSearches: int = 0
         for term in args.search:
-            if(term.strip() == '*'):
+            if (term.strip() == '*'):
                 cli.search_computer('*')
                 return
 
-            if(term.strip() != ''):
+            if (term.strip() != ''):
                 validSearches += 1
                 cli.search_computer(term.strip())
-                if(args.set_expiry and args.set_expiry.strip() != ''):
+                if (args.set_expiry and args.set_expiry.strip() != ''):
                     cli.set_expiry(args.set_expiry.strip())
 
         # if at least one computername was given, we do not start the interactive shell
-        if(validSearches > 0):
+        if (validSearches > 0):
             return
 
     # do LDAP search by interactive shell input
@@ -438,11 +438,27 @@ def main() -> None:
     while 1:
         # get keyboard input
         cmd: str = input('>> ')
-        if(cmd == 'exit' or cmd == 'quit'):
+        if (cmd == 'exit' or cmd == 'quit'):
             return
         else:
             cli.search_computer(cmd.strip())
 
 
-if __name__ == '__main__':
-    main()
+# We assume the result is successful when user interrupted
+# the scan as it is an intentional act.
+# Otherwise, exit with an error code of 1.
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Cancelled by user.')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
+    except Exception as ex:
+        print(str(ex))
+        try:
+            sys.exit(1)
+        except SystemExit:
+            os._exit(1)
