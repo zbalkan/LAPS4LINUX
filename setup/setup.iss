@@ -3,8 +3,8 @@
 
 #define MyAppName "LAPS4WINDOWS"
 #define MyAppVersion "1.5.3"
-#define MyAppPublisher "Sieber Systems"
-#define MyAppURL "https://github.com/schorschii/LAPS4LINUX"
+#define MyAppPublisher "Zafer Balkan"
+#define MyAppURL "https://github.com/zbalkan/LAPS4LINUX"
 #define MyAppExeName "laps-gui.exe"
 
 [Setup]

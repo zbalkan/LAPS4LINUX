@@ -33,7 +33,7 @@ class LapsMainWindow(QMainWindow):
 
     PRODUCT_NAME: str = 'LAPS4WINDOWS' if PLATFORM == 'win32' else 'LAPS4MAC' if PLATFORM == 'darwin' else 'LAPS4LINUX'
     PRODUCT_VERSION: str = '1.5.3'
-    PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
+    PRODUCT_WEBSITE: str = 'https://github.com/zbalkan/laps4linux'
     PROTOCOL_SCHEME: str = 'laps://'
     PRODUCT_ICON: str = 'laps.png'
     PRODUCT_ICON_PATH: str = '/usr/share/pixmaps'
@@ -76,7 +76,7 @@ class LapsMainWindow(QMainWindow):
     def init_logger(self) -> None:
         self.logger = logging.getLogger(self.PRODUCT_NAME)
         self.logger.setLevel(logging.DEBUG)
-        if(self.PLATFORM == 'win32'):
+        if (self.PLATFORM == 'win32'):
             self.logger.addHandler(
                 logging.handlers.TimedRotatingFileHandler(
                     filename='laps-gui.log', when='m', interval=1, backupCount=5))
@@ -91,12 +91,12 @@ class LapsMainWindow(QMainWindow):
 
     def InitUI(self) -> None:
         # Icon Selection
-        if(getattr(sys, 'frozen', False)):
+        if (getattr(sys, 'frozen', False)):
             # included via pyinstaller (Windows & macOS)
             self.PRODUCT_ICON_PATH = sys._MEIPASS  # type: ignore
         self.iconPath: str = path.join(
             self.PRODUCT_ICON_PATH, self.PRODUCT_ICON)
-        if(path.exists(self.iconPath)):
+        if (path.exists(self.iconPath)):
             self.icon: QIcon = QIcon(self.iconPath)
             self.setWindowIcon(self.icon)
 
@@ -110,7 +110,7 @@ class LapsMainWindow(QMainWindow):
         searchAction.setShortcut('F2')
         searchAction.triggered.connect(self.OnClickSearch)
         fileMenu.addAction(searchAction)
-        if(self.cfg.ldap_attribute_password_expiry.strip() != ''):
+        if (self.cfg.ldap_attribute_password_expiry.strip() != ''):
             setExpirationDateAction: QAction = QAction('Set &Expiration', self)
             setExpirationDateAction.setShortcut('F3')
             setExpirationDateAction.triggered.connect(self.OnClickSetExpiry)
@@ -163,7 +163,7 @@ class LapsMainWindow(QMainWindow):
             gridLine += 1
             txtAdditionalAttribute: QLineEdit = QLineEdit()
             txtAdditionalAttribute.setReadOnly(True)
-            if(self.PLATFORM == 'win32'):
+            if (self.PLATFORM == 'win32'):
                 font: QFont = QFont('Consolas', 14)
                 font.setBold(True)
             else:
@@ -180,7 +180,7 @@ class LapsMainWindow(QMainWindow):
             'Set New Expiration Date')
         self.btnSetExpirationTime.setEnabled(False)
         self.btnSetExpirationTime.clicked.connect(self.OnClickSetExpiry)
-        if(self.cfg.ldap_attribute_password_expiry.strip() != ''):
+        if (self.cfg.ldap_attribute_password_expiry.strip() != ''):
             grid.addWidget(self.btnSetExpirationTime, gridLine, 0)
             gridLine += 1
 
@@ -196,9 +196,9 @@ class LapsMainWindow(QMainWindow):
         # Handle Parameter - Automatic Search
         urlToHandle: str = ''
         for arg in sys.argv:
-            if(arg.startswith(self.PROTOCOL_SCHEME)):
+            if (arg.startswith(self.PROTOCOL_SCHEME)):
                 urlToHandle: str = arg
-        if(urlToHandle != ''):
+        if (urlToHandle != ''):
             print('Handle ' + urlToHandle)
             protocolPayload: str = unquote(urlToHandle).replace(
                 self.PROTOCOL_SCHEME, '').strip(' /')
@@ -276,18 +276,18 @@ class LapsMainWindow(QMainWindow):
         dlg.exec_()
 
     def load_settings(self) -> None:
-        if(not path.isdir(self.cfgDir)):
+        if (not path.isdir(self.cfgDir)):
             makedirs(self.cfgDir, exist_ok=True)
 
         # protect temporary .remmina file by limiting access to our config folder
-        if(self.PLATFORM == 'linux'):
+        if (self.PLATFORM == 'linux'):
             os.chmod(self.cfgDir, 0o700)
-        if(path.exists(self.cfgPathOld)):
+        if (path.exists(self.cfgPathOld)):
             rename(self.cfgPathOld, self.cfgPath)
 
-        if(path.isfile(self.cfgPath)):
+        if (path.isfile(self.cfgPath)):
             cfgPath: str = self.cfgPath
-        elif(path.isfile(self.cfgPresetPath)):
+        elif (path.isfile(self.cfgPresetPath)):
             cfgPath: str = self.cfgPresetPath
         else:
             raise Exception("Could not find the settings file.")
@@ -315,7 +315,7 @@ class LapsMainWindow(QMainWindow):
             self.show_error_dialog('Error saving settings file', str(e))
 
     def query_attributes(self) -> None:
-        if(not self.reconnect_for_attribute_query()):
+        if (not self.reconnect_for_attribute_query()):
             self.btnSetExpirationTime.setEnabled(False)
             self.btnSearchComputer.setEnabled(True)
             return
@@ -343,7 +343,7 @@ class LapsMainWindow(QMainWindow):
                 attribute: str = attrs[key]
                 textBox: QLineEdit = self.refLdapAttributesTextBoxes[str(
                     title)]
-                if(str(attribute) == self.cfg.ldap_attribute_password_expiry):
+                if (str(attribute) == self.cfg.ldap_attribute_password_expiry):
                     try:
                         textBox.setText(str(helpers.filetime_to_dt(
                             int(str(entry[str(attribute)])))))
@@ -391,7 +391,7 @@ class LapsMainWindow(QMainWindow):
             try:
                 serverArray: list[ldap3.Server] = []
                 for server in self.cfg.server:
-                    if(server.gc_port):
+                    if (server.gc_port):
                         port: int = server.gc_port
                         self.gcModeOn = True
                     else:
@@ -408,7 +408,7 @@ class LapsMainWindow(QMainWindow):
 
         # try to bind to server via Kerberos
         try:
-            if(self.useKerberos):
+            if (self.useKerberos):
                 self.connection = ldap3.Connection(
                     self.server,
                     authentication=ldap3.SASL,
@@ -464,7 +464,7 @@ class LapsMainWindow(QMainWindow):
 
     def reconnect_for_attribute_query(self) -> bool:
         # global catalog was not used for search - we can use the same connection for attribute query
-        if(not self.gcModeOn):
+        if (not self.gcModeOn):
             return True
         # global catalog was used for search (this buddy is read only and not all attributes are replicated into it)
         # -> that's why we need to establish a new connection to the "normal" LDAP port
@@ -478,7 +478,7 @@ class LapsMainWindow(QMainWindow):
             serverArray, ldap3.ROUND_ROBIN, active=True, exhaust=True)
         # try to bind to server via Kerberos
         try:
-            if(self.useKerberos):
+            if (self.useKerberos):
                 self.connection = ldap3.Connection(serverpool,
                                                    authentication=ldap3.SASL,
                                                    sasl_mechanism=ldap3.KERBEROS,

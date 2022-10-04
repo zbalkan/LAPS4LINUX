@@ -12,7 +12,7 @@ Linux implementation of the Local Administrator Password Solution (LAPS) from Mi
 ```bash
 $ ./laps-cli.py notebook01 --set-expiry "2021-04-28 01:01:01"
 LAPS4LINUX CLI v1.0.0
-https://github.com/schorschii/laps4linux
+https://github.com/zbalkan/laps4linux
 
 🔑 Password for »ldapuser«:
 Connection:     ldapserver01: user@example.com
@@ -25,7 +25,7 @@ Expiration Date Changed Successfully.
 
 $ ./laps-cli.py "*"
 LAPS4LINUX CLI v1.0.0
-https://github.com/schorschii/laps4linux
+https://github.com/zbalkan/laps4linux
 
 🔑 Password for »ldapuser«:
 Connection: ldapserver01: user@example.com
@@ -85,7 +85,7 @@ Remote access to devices using local administrator accounts should not be allowe
 
 ### `laps://` Protocol Scheme
 
-The GUI supports the protocol scheme `laps://`, which means you can call the GUI like `laps-gui.py laps://HOSTNAME` to automatically search `HOSTNAME` after startup. This feature is mainly intended to use with the [OCO server](https://github.com/schorschii/OCO-Server) web frontend ("[COMPUTER_COMMANDS](https://github.com/schorschii/OCO-Server/blob/master/docs/Computers.md#client-commands)").
+The GUI supports the protocol scheme `laps://`, which means you can call the GUI like `laps-gui.py laps://HOSTNAME` to automatically search `HOSTNAME` after startup. This feature is mainly intended to use with the [OCO server](https://github.com/zbalkan/OCO-Server) web frontend ("[COMPUTER_COMMANDS](https://github.com/zbalkan/OCO-Server/blob/master/docs/Computers.md#client-commands)").
 
 ### Windows and macOS
 
@@ -129,6 +129,6 @@ Please replace COMPUTERNAME with your hostname, but do not forget the trailing d
 
 ## Support
 
-If you like LAPS4LINUX please consider making a donation using the sponsor button on [GitHub](https://github.com/schorschii/LAPS4LINUX) to support further development.
+If you like LAPS4LINUX please consider making a donation using the sponsor button on [GitHub](https://github.com/zbalkan/LAPS4LINUX) to support further development.
 
 You can hire me for commercial support or adjustments for this project. Please [contact me](https://georg-sieber.de/?page=impressum) if you are interested.

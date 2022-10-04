@@ -25,7 +25,7 @@ class LapsCli():
 
     PRODUCT_NAME: str = 'LAPS4LINUX CLI'
     PRODUCT_VERSION: str = '1.5.3'
-    PRODUCT_WEBSITE: str = 'https://github.com/schorschii/laps4linux'
+    PRODUCT_WEBSITE: str = 'https://github.com/zbalkan/laps4linux'
 
     ENCODING: str = 'utf-8'
 
