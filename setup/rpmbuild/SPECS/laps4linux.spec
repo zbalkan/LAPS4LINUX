@@ -5,7 +5,7 @@ Summary:        Laps4linux - auto-rotate the root password for AD bound (samba n
 BuildArch:      noarch
 
 License:        GPL-3.0
-URL:            https://github.com/schorschii/LAPS4LINUX
+URL:            https://github.com/zbalkan/LAPS4LINUX
 Source0:        %{name}-%{version}.tar.gz
 
 Requires:       python3 python3-pip krb5-devel python3-gssapi python3-ldap3 python3-wheel python3-cryptography python3-dns
@@ -43,7 +43,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* August 2022 zbalkan
+* Tue Oct 04 2022 zbalkan
 - Improved configuration handling
 - Improved logging with global exception handling
 - Removed unreachable code snippets
