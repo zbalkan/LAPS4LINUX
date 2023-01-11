@@ -16,8 +16,8 @@ import ldap3
 from dns import rdatatype, resolver
 from ldap3.utils.conv import escape_filter_chars
 
-import helpers
-from configuration import CfgServer, ClientConfig
+import laps4linux.shared.helpers as helpers
+from laps4linux.shared.configuration import CfgServer, ClientConfig
 
 
 class LapsCli():

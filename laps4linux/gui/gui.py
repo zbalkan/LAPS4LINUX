@@ -24,8 +24,8 @@ from PyQt5.QtWidgets import (QAction, QApplication, QCalendarWidget, QDialog, QD
                              QGridLayout, QInputDialog, QLabel, QLineEdit, QMainWindow, QMenu,
                              QMenuBar, QMessageBox, QPushButton, QVBoxLayout, QWidget)
 
-import helpers
-from configuration import CfgServer, ClientConfig
+import laps4linux.shared.helpers as helpers
+from laps4linux.shared.configuration import CfgServer, ClientConfig
 
 
 class LapsMainWindow(QMainWindow):

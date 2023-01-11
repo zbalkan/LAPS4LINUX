@@ -20,8 +20,8 @@ from cryptography.hazmat.primitives import hashes
 from dns import rdatatype, resolver
 from ldap3.utils.conv import escape_filter_chars
 
-import helpers as helpers
-from configuration import RunnerConfig
+import laps4linux.shared.helpers as helpers
+from laps4linux.shared.configuration import RunnerConfig
 
 
 class LapsRunner():
