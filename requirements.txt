@@ -14,4 +14,4 @@ PyYAML==6.0
 requests==2.28.1
 shellescape==3.8.1
 toml==0.10.2
-urllib3==1.26.12
+urllib3==1.26.19
