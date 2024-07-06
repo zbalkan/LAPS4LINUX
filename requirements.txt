@@ -2,8 +2,10 @@ autopep8==1.7.0
 certifi==2024.7.4
 cffi==1.15.1
 charset-normalizer==2.1.1
+
+
 cryptography==42.0.4
-dnspython==2.2.1
+dnspython==2.6.1
 idna==3.7
 ldap3==2.9.1
 Naked==0.1.31
