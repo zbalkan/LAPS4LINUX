@@ -1,0 +1,7 @@
+{
+  "include": ["laps-runner/laps_runner", "laps-client/laps_client"],
+  "extraPaths": ["laps-runner", "laps-client"],
+  "pythonVersion": "3.10",
+  "typeCheckingMode": "standard",
+  "reportMissingModuleSource": "none"
+}
