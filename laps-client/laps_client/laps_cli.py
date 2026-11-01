@@ -250,7 +250,7 @@ class LapsCli:
 				raise Exception('Invalid LAPS JSON')
 			return jsonDict['p'], jsonDict['n'], str(filetime_to_dt( int(jsonDict['t'], 16) ))
 
-		except Exception as e:
+		except Exception:
 			# directly use LDAP value as password (Legacy LAPS)
 			return ldapValue, None, None
 
