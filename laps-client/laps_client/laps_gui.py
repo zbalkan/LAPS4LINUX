@@ -1018,7 +1018,7 @@ class LapsMainWindow(QtWidgets.QMainWindow):
 			tmpLdapAttributes = cfgJson.get('ldap-attributes', self.cfgLdapAttributes)
 			self.cfgConnectUsername = str(cfgJson.get('connect-username', self.cfgConnectUsername))
 			self.cfgUseAutotypeEnter = cfgJson.get('use-autotype-enter', self.cfgUseAutotypeEnter)
-			if(isinstance(tmpLdapAttributes, list) or isinstance(tmpLdapAttributes, dict)):
+			if(isinstance(tmpLdapAttributes, (list, dict))):
 				self.cfgLdapAttributes = tmpLdapAttributes
 		except Exception as e:
 			self.showInfoDialog('Error loading settings file', str(e), icon=QtWidgets.QMessageBox.Icon.Critical)
