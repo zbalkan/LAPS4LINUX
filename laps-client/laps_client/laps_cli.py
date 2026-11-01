@@ -381,7 +381,7 @@ class LapsCli:
 				auto_bind=(ldap3.AUTO_BIND_TLS_BEFORE_BIND if self.cfgUseStartTls else True)
 			)
 			if(self.cfgUseStartTls): self.connection.start_tls()
-			print('') # separate user input from results by newline
+			print() # separate user input from results by newline
 		except Exception as e:
 			if(isinstance(e, ldap3.core.exceptions.LDAPServerPoolExhaustedError)):
 				raise Exception('Unable to connect to any of your LDAP servers')
@@ -556,7 +556,7 @@ def main():
 		if(validSearches > 0): return
 
 	# do LDAP search by interactive shell input
-	print('')
+	print()
 	print('Welcome to interactive shell. Please enter a computer name to search for.')
 	print('Parameter --help provides more information.')
 	while True:
