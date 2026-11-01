@@ -1,5 +1,3 @@
-from distutils.command.clean import clean
-from distutils import log
 from setuptools import setup
 import os
 
@@ -8,13 +6,16 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+    requirements = [line.strip() for line in f]
+
 setup(
       name='laps4linux_runner',
       version=__import__('laps_runner').__version__,
       description='Rotate and store local administrator (LAPS) passwords in your AD/LDAP directory',
       long_description=long_description,
       long_description_content_type='text/markdown',
-      install_requires=[i.strip() for i in open('requirements.txt').readlines()],
+      install_requires=requirements,
       license=__import__('laps_runner').__license__,
       author='Georg Sieber',
       keywords='laps password administrator ad ldap',
