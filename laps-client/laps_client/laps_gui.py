@@ -8,7 +8,7 @@ from PyQt6 import QtWidgets, QtGui, QtCore
 
 from urllib.parse import unquote
 from pathlib import Path
-from os import path, makedirs, rename
+from os import path, makedirs
 from datetime import datetime
 from dns import resolver, rdatatype
 from functools import partial
@@ -551,7 +551,7 @@ class LapsMainWindow(QtWidgets.QMainWindow):
 			# check remmina existence and version
 			if(which('remmina') is None): raise Exception('Remmina is not installed')
 			newRemmina = False
-			res = subprocess.run('remmina --version | grep org.remmina.Remmina | cut -d- -f2 | cut -d"(" -f1 | xargs', shell=True, env=self.prepareEnvironment(), stdout=subprocess.PIPE, stdin=subprocess.DEVNULL)
+			res = subprocess.run(check=False, 'remmina --version | grep org.remmina.Remmina | cut -d- -f2 | cut -d"(" -f1 | xargs', shell=True, env=self.prepareEnvironment(), stdout=subprocess.PIPE, stdin=subprocess.DEVNULL)
 			if(self.versionTuple(res.stdout.decode('utf-8')) >= self.versionTuple('1.4.25')):
 				newRemmina = True
 
