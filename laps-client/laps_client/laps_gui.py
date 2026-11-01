@@ -654,7 +654,7 @@ class LapsMainWindow(QtWidgets.QMainWindow):
 
 		try:
 			# clear text boxes
-			for title, attribute in self.GetAttributesAsDict().items():
+			for title in self.GetAttributesAsDict():
 				textBox = self.refLdapAttributesTextBoxes[str(title)]
 				self.updateTextboxText(textBox, '')
 				textBox.setToolTip('')
