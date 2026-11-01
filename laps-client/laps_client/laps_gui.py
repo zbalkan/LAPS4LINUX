@@ -23,7 +23,7 @@ import os
 
 class LapsAboutWindow(QtWidgets.QDialog):
 	def __init__(self, *args, **kwargs):
-		super(LapsAboutWindow, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.InitUI()
 
 	def InitUI(self):
@@ -75,7 +75,7 @@ class LapsAboutWindow(QtWidgets.QDialog):
 
 class LapsLoginWindow(QtWidgets.QDialog):
 	def __init__(self, server, username, *args, **kwargs):
-		super(LapsLoginWindow, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 		# window layout
 		self.buttonBox = QtWidgets.QDialogButtonBox(
@@ -115,7 +115,7 @@ class LapsLoginWindow(QtWidgets.QDialog):
 
 class LapsBarcodeWindow(QtWidgets.QDialog):
 	def __init__(self, title, value, img, *args, **kwargs):
-		super(LapsBarcodeWindow, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.title = title
 		self.value = value
 		self.img = img
@@ -168,7 +168,7 @@ class LapsBarcodeWindow(QtWidgets.QDialog):
 
 class LapsCalendarWindow(QtWidgets.QDialog):
 	def __init__(self, *args, **kwargs):
-		super(LapsCalendarWindow, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.InitUI()
 
 	def InitUI(self):
@@ -284,7 +284,7 @@ class LapsMainWindow(QtWidgets.QMainWindow):
 
 
 	def __init__(self):
-		super(LapsMainWindow, self).__init__()
+		super().__init__()
 		self.LoadSettings()
 		self.InitUI()
 
