@@ -5,7 +5,7 @@ __license__   = 'GPL-3.0'
 __version__   = '1.15.0'
 __website__   = 'https://github.com/schorschii/LAPS4LINUX'
 
-__all__ = [__author__, __license__, __version__]
+__all__ = ['__author__', '__license__', '__version__']
 
 
 
