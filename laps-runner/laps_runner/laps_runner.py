@@ -75,7 +75,7 @@ class LapsRunner:
 		# show note
 		print(__title__ + ' Runner' +' v'+__version__)
 		print('If you like LAPS4LINUX please do not forget to give the repository a star ('+__website__+').')
-		print('')
+		print()
 
 	def getHostname(self):
 		if(self.cfgHostname == None or self.cfgHostname.strip() == ''):
