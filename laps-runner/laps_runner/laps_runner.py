@@ -27,7 +27,7 @@ import logging.handlers
 import traceback
 
 
-class LapsRunner():
+class LapsRunner:
 	server     = None
 	connection = None
 	logger     = None
