@@ -18,7 +18,7 @@ import sys
 import os
 
 
-class LapsCli():
+class LapsCli:
 	PLATFORM          = sys.platform.lower()
 
 	gcModeOn    = False
