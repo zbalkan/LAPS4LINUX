@@ -635,7 +635,7 @@ class LapsMainWindow(QtWidgets.QMainWindow):
 
 			time.sleep(0.2)
 			subprocess.Popen(['remmina', '-c', self.cfgPathRemmina], env=self.prepareEnvironment())
-		except Exception as e:
+		except Exception as exc:
 			# display error
 			self.statusBar.showMessage(str(e))
 			print(traceback.format_exc())
