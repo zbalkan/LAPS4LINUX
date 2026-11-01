@@ -5,7 +5,7 @@ from .__init__ import proposeUsername
 from .filetime import dt_to_filetime, filetime_to_dt
 
 from pathlib import Path
-from os import path, makedirs, rename
+from os import path, makedirs
 from datetime import datetime
 from dns import resolver, rdatatype
 import dpapi_ng
