@@ -96,7 +96,7 @@ class LapsRunner:
 	def initKerberos(self):
 		# query new kerberos ticket
 		cmd = ['kinit', '-k', '-c', self.cfgCredCacheFile, self.getHostname()+'$']
-		res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True, env=self.prepareEnvironment())
+		res = subprocess.run(check=False, cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True, env=self.prepareEnvironment())
 		if res.returncode != 0: raise Exception(' '.join(cmd)+' returned non-zero exit code '+str(res.returncode))
 
 	def connectToServer(self):
@@ -212,7 +212,7 @@ class LapsRunner:
 			if(not isinstance(hookArgs, list)): continue
 			replacements = {'$PASSWORD$':newPassword, '$USERNAME$':self.cfgUsername}
 			cmd = [replacements.get(n, n) for n in hookArgs]
-			res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True, env=self.prepareEnvironment())
+			res = subprocess.run(check=False, cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True, env=self.prepareEnvironment())
 			if res.returncode == 0:
 				print('Hook "'+hookName+'" successfully executed')
 				self.logger.debug(__title__+': Hook "'+hookName+'" successfully executed')
@@ -222,7 +222,7 @@ class LapsRunner:
 
 	def updateLocalPassword(self, username, password_hash):
 		cmd = ['usermod', '-p', password_hash, username]
-		res = subprocess.run(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True, env=self.prepareEnvironment())
+		res = subprocess.run(check=False, cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True, env=self.prepareEnvironment())
 		if res.returncode != 0:
 			raise Exception('usermod returned non-zero exit code '+str(res.returncode))
 
