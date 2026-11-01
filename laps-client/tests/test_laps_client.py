@@ -169,25 +169,25 @@ class TestParseLapsValue(unittest.TestCase):
     def test_native_laps_json(self):
         ft_hex = hex(132539136000000000)  # 2021-01-01 UTC
         laps_json = json.dumps({'n': 'Administrator', 'p': 'SecretPass!', 't': ft_hex})
-        password, username, timestamp = self.cli.parseLapsValue(laps_json)
+        password, username, _timestamp = self.cli.parseLapsValue(laps_json)
         self.assertEqual(password, 'SecretPass!')
         self.assertEqual(username, 'Administrator')
         self.assertIsNotNone(timestamp)
 
     def test_legacy_laps_plain_password(self):
-        password, username, timestamp = self.cli.parseLapsValue('PlainPassword123')
+        password, username, _timestamp = self.cli.parseLapsValue('PlainPassword123')
         self.assertEqual(password, 'PlainPassword123')
         self.assertIsNone(username)
         self.assertIsNone(timestamp)
 
     def test_invalid_json_falls_back_to_plain(self):
-        password, username, timestamp = self.cli.parseLapsValue('not-json-at-all')
+        password, username, _timestamp = self.cli.parseLapsValue('not-json-at-all')
         self.assertEqual(password, 'not-json-at-all')
         self.assertIsNone(username)
 
     def test_json_missing_keys_falls_back(self):
         raw = '{"p": "test"}'
-        password, username, timestamp = self.cli.parseLapsValue(raw)
+        password, username, _timestamp = self.cli.parseLapsValue(raw)
         self.assertEqual(password, raw)
         self.assertIsNone(username)
 
