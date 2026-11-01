@@ -483,7 +483,7 @@ class LapsCli:
 			self.cfgLdapAttributePasswordExpiry = cfgJson.get('ldap-attribute-password-expiry', self.cfgLdapAttributePasswordExpiry)
 			self.cfgLdapAttributePasswordHistory = cfgJson.get('ldap-attribute-password-history', self.cfgLdapAttributePasswordHistory)
 			tmpLdapAttributes = cfgJson.get('ldap-attributes', self.cfgLdapAttributes)
-			if(isinstance(tmpLdapAttributes, list) or isinstance(tmpLdapAttributes, dict)):
+			if(isinstance(tmpLdapAttributes, (list, dict))):
 				self.cfgLdapAttributes = tmpLdapAttributes
 		except Exception as e:
 			eprint('Error loading settings file:', str(e))
