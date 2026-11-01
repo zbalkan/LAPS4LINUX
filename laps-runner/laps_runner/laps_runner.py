@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 from .__init__ import __title__, __version__, __website__, __author__, __copyright__
 from .filetime import dt_to_filetime, filetime_to_dt
