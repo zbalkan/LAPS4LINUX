@@ -1,5 +1,3 @@
-from distutils.command.clean import clean
-from distutils import log
 from setuptools import setup
 import os
 
@@ -8,15 +6,21 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+    requirements = [line.strip() for line in f]
+
+with open(os.path.join(here, 'requirements-barcode.txt'), encoding='utf-8') as f:
+    barcode_requirements = [line.strip() for line in f]
+
 setup(
       name='laps4linux_client',
       version=__import__('laps_client').__version__,
       description='View local administrator (LAPS) passwords from your AD/LDAP directory',
       long_description=long_description,
       long_description_content_type='text/markdown',
-      install_requires=[i.strip() for i in open('requirements.txt').readlines()],
+      install_requires=requirements,
       extras_require={
-            'barcode': [i.strip() for i in open('requirements-barcode.txt').readlines()],
+            'barcode': barcode_requirements,
       },
       license=__import__('laps_client').__license__,
       author='Georg Sieber',
