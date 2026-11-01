@@ -1060,7 +1060,7 @@ class LapsMainWindow(QtWidgets.QMainWindow):
 		msg.setText(text)
 		msg.setDetailedText(additionalText)
 		msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-		retval = msg.exec()
+		msg.exec()
 
 def main():
 	# as long as we want to support Debian 11 and Ubuntu 22.04,
